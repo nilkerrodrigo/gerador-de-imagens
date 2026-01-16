@@ -63,20 +63,25 @@ export const registerUser = async (username: string, password: string): Promise<
         const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
         if (existing) throw new Error("Usuário já existe.");
 
-        // Ao inserir, passamos o created_at como ISO string para o banco aceitar
+        // PREPARAÇÃO CRÍTICA: Remove 'createdAt' (JS) e mantém apenas 'created_at' (DB)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { createdAt, ...userForDb } = newUser;
+        
         const dbUser = {
-            ...newUser,
+            ...userForDb,
             created_at: new Date(newUser.createdAt).toISOString()
         };
 
         const { error } = await supabase.from('users').insert([dbUser]);
         if (error) {
             console.error("Supabase insert error:", error);
+            throw error; // Lança o erro para ser capturado pelo UI
         } else {
             savedInSupabase = true;
         }
       } catch (e: any) {
           if (e.message === "Usuário já existe.") throw e;
+          // Se for erro de coluna, precisamos ver no console, mas não impedir o fluxo local se possível (exceto se for admin)
           console.error("Erro de conexão Supabase:", e);
       }
   }
@@ -109,8 +114,12 @@ export const createUserByAdmin = async (username: string, password: string, role
         const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
         if (existing) throw new Error("Usuário já existe.");
 
+        // PREPARAÇÃO CRÍTICA: Remove 'createdAt' (JS) para não enviar coluna inexistente
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { createdAt, ...userForDb } = newUser;
+
         const dbUser = {
-            ...newUser,
+            ...userForDb,
             created_at: new Date(newUser.createdAt).toISOString()
         };
 
@@ -180,7 +189,9 @@ export const loginUser = async (username: string, password: string): Promise<Use
 
       if (supabase) {
           try {
-             const dbAdmin = { ...adminUser, created_at: new Date().toISOString() };
+             // eslint-disable-next-line @typescript-eslint/no-unused-vars
+             const { createdAt, ...userForDb } = adminUser;
+             const dbAdmin = { ...userForDb, created_at: new Date().toISOString() };
              const { error } = await supabase.from('users').insert([dbAdmin]);
              if (error) console.error("Erro Supabase Bootstrap:", error);
           } catch(e) { console.error("Erro ao salvar admin no banco:", e); }
