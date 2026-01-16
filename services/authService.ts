@@ -26,7 +26,7 @@ export const getUsers = (): User[] => {
   // Migração simples para evitar erros se a versão anterior do User não tinha status
   return users.map(u => ({
       ...u,
-      status: u.status || 'active' // Assume active se for usuário legado
+      status: u.status || 'active'
   }));
 };
 
@@ -34,7 +34,7 @@ const saveUsers = (users: User[]) => {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 };
 
-// Registro público (Padrão: Pendente)
+// Registro público (Padrão agora é ACTIVE para facilitar o uso)
 export const registerUser = (username: string, password: string): User => {
   const users = getUsers();
   if (users.find((u) => u.username === username)) {
@@ -46,7 +46,7 @@ export const registerUser = (username: string, password: string): User => {
     username,
     password,
     role: "user", 
-    status: "pending", // AGUARDA APROVAÇÃO
+    status: "active", // MUDANÇA: Usuário já nasce ativo para evitar confusão de "não salvou"
     createdAt: Date.now(),
   };
 
@@ -67,7 +67,7 @@ export const createUserByAdmin = (username: string, password: string, role: 'adm
       username,
       password,
       role: role, 
-      status: "active", // JÁ CRIADO APROVADO
+      status: "active", 
       createdAt: Date.now(),
     };
   
@@ -82,11 +82,11 @@ export const loginUser = (username: string, password: string): User => {
   const user = users.find((u) => u.username === username && u.password === password);
 
   if (!user) {
-    throw new Error("Credenciais inválidas.");
+    throw new Error("Usuário não encontrado ou senha incorreta.");
   }
 
   if (user.status === 'pending') {
-      throw new Error("Cadastro em análise. Aguarde aprovação do administrador.");
+      throw new Error("Cadastro em análise. Aguarde aprovação.");
   }
 
   if (user.status === 'blocked') {
@@ -155,7 +155,6 @@ export const blockUser = (userId: string) => {
     const userIndex = users.findIndex((u) => u.id === userId);
     if (userIndex === -1) throw new Error("Usuário não encontrado.");
     
-    // Proteção contra bloqueio do último admin
     if (users[userIndex].role === 'admin') {
          const adminCount = users.filter(u => u.role === 'admin' && u.status === 'active').length;
          if (adminCount <= 1) throw new Error("Não é possível bloquear o último administrador.");

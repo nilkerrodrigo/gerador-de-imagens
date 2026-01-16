@@ -366,8 +366,6 @@ const SidebarPanel = ({
   currentUser,
   onLogout,
   onOpenAdmin,
-  customApiKey,
-  setCustomApiKey
 }: { 
   state: AppState; 
   onChange: (key: keyof AppState, value: any) => void;
@@ -376,11 +374,11 @@ const SidebarPanel = ({
   currentUser: User;
   onLogout: () => void;
   onOpenAdmin: () => void;
-  customApiKey: string;
-  setCustomApiKey: (key: string) => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
-  const [showKey, setShowKey] = useState(false);
+
+  // Check if system key exists
+  const hasSystemKey = !!process.env.API_KEY && process.env.API_KEY.length > 0 && process.env.API_KEY !== 'undefined';
 
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
@@ -398,7 +396,7 @@ const SidebarPanel = ({
       if (!files || files.length === 0) return;
       setAnalyzing(true);
       try {
-          const result = await analyzeBrandAssets(files, customApiKey);
+          const result = await analyzeBrandAssets(files);
           if (result.palette) onChange('colorPalette', result.palette);
           const matchedStyle = STYLES.find(s => s.value === result.style);
           if (matchedStyle) onChange('style', matchedStyle.value);
@@ -443,31 +441,18 @@ const SidebarPanel = ({
               </button>
            </div>
         </div>
-
-        {/* API Key Section */}
-        <div className="p-4 bg-surface/30 rounded-xl border border-white/5 space-y-2">
-            <label className="text-[10px] font-bold text-textMuted uppercase tracking-wider flex items-center">
-                <Key className="w-3 h-3 mr-1.5" /> Chave Gemini (Opcional)
-            </label>
-            <div className="relative">
-                <input 
-                    type={showKey ? "text" : "password"} 
-                    value={customApiKey}
-                    onChange={(e) => setCustomApiKey(e.target.value)}
-                    placeholder="Usar padrão do sistema"
-                    className="w-full bg-background border border-border rounded-lg pl-3 pr-8 py-2 text-xs text-white focus:outline-none focus:border-primary placeholder-textMuted/50 transition-colors"
-                />
-                <button 
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-white"
-                >
-                    {showKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                </button>
-            </div>
-            {customApiKey && (
-                 <p className="text-[9px] text-green-400 flex items-center"><Check className="w-2.5 h-2.5 mr-1" /> Chave personalizada ativa</p>
-            )}
-        </div>
+        
+        {!hasSystemKey && (
+          <div className="p-4 bg-red-500/10 rounded-xl border border-red-500/20 space-y-2">
+            <p className="text-[10px] text-red-300 font-bold flex items-center">
+                <AlertCircle className="w-3 h-3 mr-1.5" />
+                Erro de Configuração
+            </p>
+            <p className="text-[9px] text-red-300 opacity-80 leading-tight">
+                A variável de ambiente API_KEY não foi detectada. O sistema não funcionará sem ela.
+            </p>
+          </div>
+        )}
 
         <div className="w-full h-px bg-border/50"></div>
 
@@ -661,7 +646,6 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false); // NEW STATE
-  const [customApiKey, setCustomApiKey] = useState(''); // Estado da API Key
   
   // App Logic State
   const [loading, setLoading] = useState(false);
@@ -687,18 +671,6 @@ export default function App() {
     style: 'Cinematic',
     format: '1:1'
   });
-
-  // Carregar API Key do LocalStorage
-  useEffect(() => {
-    const savedKey = localStorage.getItem('AETHER_CUSTOM_KEY');
-    if (savedKey) setCustomApiKey(savedKey);
-  }, []);
-
-  // Salvar API Key quando mudar
-  useEffect(() => {
-    if (customApiKey) localStorage.setItem('AETHER_CUSTOM_KEY', customApiKey);
-    else localStorage.removeItem('AETHER_CUSTOM_KEY');
-  }, [customApiKey]);
 
   // Check Session on Mount
   useEffect(() => {
@@ -793,7 +765,7 @@ export default function App() {
     setMagicLoading(true);
     setError(null); 
     try {
-        const enhanced = await enhancePrompt(state.description, state.category, state.style, customApiKey);
+        const enhanced = await enhancePrompt(state.description, state.category, state.style);
         handleStateChange('description', enhanced);
     } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique se a API Key está configurada corretamente."); } finally { setMagicLoading(false); }
   };
@@ -802,7 +774,7 @@ export default function App() {
      if (creative.caption) return; 
      setCaptionLoading(creative.id);
      try {
-         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective, customApiKey);
+         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective);
          
          // Atualiza estado local
          setGeneratedImages(prev => prev.map(img => img.id === creative.id ? { ...img, caption } : img));
@@ -822,7 +794,7 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
-      const images = await generateCreatives(state, customApiKey);
+      const images = await generateCreatives(state);
       const currentSettings = {
         category: state.category,
         description: state.description,
@@ -886,8 +858,6 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdmin={() => setShowAdminPanel(true)}
-        customApiKey={customApiKey}
-        setCustomApiKey={setCustomApiKey}
       />
 
       {/* Main Content */}
