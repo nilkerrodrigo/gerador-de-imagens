@@ -4,7 +4,7 @@ import { AppState, GeneratedCreative, User } from './types';
 import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
-import { isSupabaseConfigured } from './lib/supabaseClient'; // Import check
+import { isSupabaseConfigured } from './lib/supabaseClient'; 
 import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
@@ -15,24 +15,28 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+    setLoading(true);
     try {
       if (isRegistering) {
-        registerUser(username, password);
-        setSuccessMsg("Conta criada com sucesso! Aguarde a aprovação do administrador para fazer login.");
-        setIsRegistering(false); // Volta para login
+        await registerUser(username, password);
+        setSuccessMsg("Conta criada com sucesso! Você já pode fazer login.");
+        setIsRegistering(false); 
         setUsername('');
         setPassword('');
       } else {
-        const user = loginUser(username, password);
+        const user = await loginUser(username, password);
         onLoginSuccess(user);
       }
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,9 +101,10 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
 
           <button 
             type="submit" 
-            className="w-full bg-primary hover:bg-primaryHover text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all uppercase tracking-wider text-xs flex justify-center items-center"
+            disabled={loading}
+            className="w-full bg-primary hover:bg-primaryHover disabled:opacity-50 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all uppercase tracking-wider text-xs flex justify-center items-center"
           >
-            {isRegistering ? 'Solicitar Cadastro' : 'Entrar na Plataforma'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isRegistering ? 'Criar Conta' : 'Entrar na Plataforma')}
           </button>
         </form>
 
@@ -112,18 +117,15 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
           </button>
         </div>
       </div>
-      
-      <div className="mt-8 text-center text-textMuted text-[10px] uppercase tracking-widest opacity-50">
-         Sistema Seguro • Aether Intelligence v2.0
-      </div>
     </div>
   );
 };
 
 // --- Admin Panel Component ---
 const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () => void }) => {
-  const [usersList, setUsersList] = useState<User[]>(getUsers());
+  const [usersList, setUsersList] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [loading, setLoading] = useState(false);
   
   // Create Form State
   const [newUsername, setNewUsername] = useState('');
@@ -131,30 +133,44 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
   const [createMsg, setCreateMsg] = useState<string | null>(null);
 
-  const refreshList = () => setUsersList(getUsers());
+  const refreshList = async () => {
+      setLoading(true);
+      try {
+          const list = await getUsers();
+          setUsersList(list);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setLoading(false);
+      }
+  };
 
-  const handleDelete = (id: string) => {
+  useEffect(() => {
+      refreshList();
+  }, []);
+
+  const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este usuário?")) {
-      try { deleteUser(id); refreshList(); } catch (e: any) { alert(e.message); }
+      try { await deleteUser(id); refreshList(); } catch (e: any) { alert(e.message); }
     }
   };
 
-  const handleRoleToggle = (id: string) => {
-    try { toggleUserRole(id); refreshList(); } catch (e: any) { alert(e.message); }
+  const handleRoleToggle = async (id: string) => {
+    try { await toggleUserRole(id); refreshList(); } catch (e: any) { alert(e.message); }
   };
 
-  const handleApprove = (id: string) => {
-      try { approveUser(id); refreshList(); } catch (e: any) { alert(e.message); }
+  const handleApprove = async (id: string) => {
+      try { await approveUser(id); refreshList(); } catch (e: any) { alert(e.message); }
   };
 
-  const handleBlock = (id: string) => {
-      try { blockUser(id); refreshList(); } catch (e: any) { alert(e.message); }
+  const handleBlock = async (id: string) => {
+      try { await blockUser(id); refreshList(); } catch (e: any) { alert(e.message); }
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
-          createUserByAdmin(newUsername, newPassword, newRole);
+          await createUserByAdmin(newUsername, newPassword, newRole);
           setCreateMsg(`Usuário ${newUsername} criado com sucesso!`);
           setNewUsername('');
           setNewPassword('');
@@ -205,21 +221,21 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                 <div className="bg-background/50 border border-white/5 p-3 rounded-lg flex items-center justify-between">
                     <div>
                         <p className="text-[10px] text-textMuted uppercase tracking-wider font-bold">Total Usuários</p>
-                        <p className="text-xl font-bold text-white">{totalUsers}</p>
+                        <p className="text-xl font-bold text-white">{loading ? '...' : totalUsers}</p>
                     </div>
                     <Users className="w-5 h-5 text-primary opacity-50" />
                 </div>
                 <div className="bg-background/50 border border-white/5 p-3 rounded-lg flex items-center justify-between">
                     <div>
                         <p className="text-[10px] text-textMuted uppercase tracking-wider font-bold">Ativos</p>
-                        <p className="text-xl font-bold text-green-400">{activeUsers}</p>
+                        <p className="text-xl font-bold text-green-400">{loading ? '...' : activeUsers}</p>
                     </div>
                     <CheckCircle className="w-5 h-5 text-green-400 opacity-50" />
                 </div>
                 <div className="bg-background/50 border border-white/5 p-3 rounded-lg flex items-center justify-between">
                     <div>
                         <p className="text-[10px] text-textMuted uppercase tracking-wider font-bold">Pendentes</p>
-                        <p className="text-xl font-bold text-yellow-400">{pendingUsers}</p>
+                        <p className="text-xl font-bold text-yellow-400">{loading ? '...' : pendingUsers}</p>
                     </div>
                     <AlertCircle className="w-5 h-5 text-yellow-400 opacity-50" />
                 </div>
@@ -273,7 +289,9 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                     </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                    {usersList.sort((a,b) => (a.status === 'pending' ? -1 : 1)).map(u => (
+                    {loading ? (
+                         <tr><td colSpan={4} className="p-8 text-center text-textMuted"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />Carregando usuários...</td></tr>
+                    ) : usersList.sort((a,b) => (a.status === 'pending' ? -1 : 1)).map(u => (
                         <tr key={u.id} className={`group transition-colors ${u.status === 'pending' ? 'bg-yellow-500/5 hover:bg-yellow-500/10' : 'hover:bg-white/5'}`}>
                             <td className="p-4">
                                 <div className="flex items-center space-x-3">
