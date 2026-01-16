@@ -4,7 +4,7 @@ import { GeneratedCreative } from "../types";
 const MAX_ITEMS_PER_USER = 12; // Limite para economizar banco de dados
 
 // --- LOCAL STORAGE FALLBACKS ---
-const getLocalKey = (userId: string) => `AETHER_GALLERY_${userId}`;
+const getLocalKey = (userId: string) => `AZUL_GALLERY_${userId}`;
 
 const saveLocal = (userId: string, creative: GeneratedCreative) => {
     const key = getLocalKey(userId);

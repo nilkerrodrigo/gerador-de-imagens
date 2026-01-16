@@ -1,8 +1,8 @@
 import { User } from "../types";
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 
-const SESSION_KEY = "AETHER_SESSION";
-const USERS_KEY_LOCAL = "AETHER_USERS_LOCAL_CACHE";
+const SESSION_KEY = "AZUL_SESSION";
+const USERS_KEY_LOCAL = "AZUL_USERS_LOCAL_CACHE";
 
 // --- HELPERS LOCAIS (Fallback/Cache) ---
 const getLocalUsers = (): User[] => {

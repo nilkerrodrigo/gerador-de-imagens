@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
 import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
@@ -51,7 +50,7 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
            <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 mb-4">
              <Sparkles className="text-white w-6 h-6" />
            </div>
-           <h1 className="text-2xl font-bold text-white tracking-tight">Aether Visuals</h1>
+           <h1 className="text-2xl font-bold text-white tracking-tight">Azul Creative IA</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -711,7 +710,8 @@ export default function App() {
     if (!currentUser) return; // Only load app state if logged in
     
     // Load Settings (Still local for user preferences)
-    const savedState = localStorage.getItem(`AETHER_STATE_${currentUser.id}`);
+    // Key updated to AZUL_STATE
+    const savedState = localStorage.getItem(`AZUL_STATE_${currentUser.id}`);
     if (savedState) {
         try {
             const parsed = JSON.parse(savedState);
@@ -733,7 +733,8 @@ export default function App() {
   useEffect(() => {
      if (!currentUser) return;
      const stateToSave = { ...state, referenceImages: [], logoImage: null };
-     localStorage.setItem(`AETHER_STATE_${currentUser.id}`, JSON.stringify(stateToSave));
+     // Key updated to AZUL_STATE
+     localStorage.setItem(`AZUL_STATE_${currentUser.id}`, JSON.stringify(stateToSave));
   }, [state, currentUser]);
 
   // Gallery saving is now handled explicitly in handleGenerate, not via useEffect
@@ -757,7 +758,8 @@ export default function App() {
   const handleDownload = (url: string, id: string) => {
     const link = document.createElement('a');
     link.href = url;
-    link.download = `aether-${state.category.replace(/\s+/g, '-').toLowerCase()}-${id}.jpg`;
+    // Filename updated to azul-
+    link.download = `azul-${state.category.replace(/\s+/g, '-').toLowerCase()}-${id}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -886,12 +888,12 @@ export default function App() {
                <Sparkles className="text-white w-6 h-6" />
              </div>
              <div>
-               <h1 className="text-3xl font-bold tracking-tight text-white leading-none">AETHER</h1>
-               <span className="text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">Inteligência Visual</span>
+               <h1 className="text-3xl font-bold tracking-tight text-white leading-none">AZUL</h1>
+               <span className="text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">Creative IA</span>
              </div>
           </div>
           <div className="flex items-center space-x-6">
-             <button onClick={() => { if(confirm("Deseja limpar toda a galeria e o histórico?")) { setGeneratedImages([]); localStorage.removeItem(`AETHER_GALLERY_${currentUser.id}`); } }} className="group flex items-center space-x-2 text-xs font-medium text-textMuted hover:text-white transition-colors">
+             <button onClick={() => { if(confirm("Deseja limpar toda a galeria e o histórico?")) { setGeneratedImages([]); localStorage.removeItem(`AZUL_GALLERY_${currentUser.id}`); } }} className="group flex items-center space-x-2 text-xs font-medium text-textMuted hover:text-white transition-colors">
                <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" /> <span>Limpar Tela</span>
              </button>
              

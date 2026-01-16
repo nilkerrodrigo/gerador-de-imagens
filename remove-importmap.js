@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const indexPath = path.join(__dirname, 'index.html');
 
-console.log("🛡️  Aether Security Protocol: Verificando integridade do index.html...");
+console.log("🛡️  Azul Security Protocol: Verificando integridade do index.html...");
 
 try {
   let content = fs.readFileSync(indexPath, 'utf8');

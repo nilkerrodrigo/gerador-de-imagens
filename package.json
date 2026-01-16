@@ -1,5 +1,5 @@
 {
-  "name": "aether-visuals",
+  "name": "azul-creative-ia",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^0.2.1",
+    "@google/genai": "^0.1.2",
     "@supabase/supabase-js": "^2.39.3",
     "lucide-react": "^0.300.0",
     "react": "^18.2.0",
