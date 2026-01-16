@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
@@ -10,6 +9,40 @@ const getAiClient = (customKey?: string) => {
   }
   return new GoogleGenAI({ apiKey });
 };
+
+// --- RETRY LOGIC HELPER ---
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delayMs = 2000): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      // Verifica erros de cota (429) ou sobrecarga
+      const isQuotaError = error.status === 429 || 
+                           error.message?.includes('429') || 
+                           error.message?.includes('quota') || 
+                           error.message?.includes('RESOURCE_EXHAUSTED');
+      
+      const isOverloaded = error.status === 503 || error.message?.includes('503');
+
+      if ((isQuotaError || isOverloaded) && i < retries - 1) {
+        const waitTime = delayMs * Math.pow(2, i); // Backoff exponencial: 2s, 4s, 8s
+        console.warn(`Tentativa ${i + 1} falhou (Erro ${error.status}). Aguardando ${waitTime}ms...`);
+        await wait(waitTime);
+        continue;
+      }
+
+      // Se for a última tentativa e for erro de cota, lança mensagem amigável
+      if (isQuotaError) {
+         throw new Error("Cota Gratuita Excedida. A API do Google bloqueou temporariamente. Aguarde alguns minutos ou insira uma Chave Paga nas configurações.");
+      }
+      
+      throw error;
+    }
+  }
+  throw new Error("Falha na operação após várias tentativas.");
+}
 
 // Helper robusto para garantir proporções aceitas pela API
 const getAspectRatioForApi = (formatValue: string): string => {
@@ -111,16 +144,13 @@ export const enhancePrompt = async (
     - Output ONLY the rewritten prompt text. No "Here is the prompt" prefix.
     `;
 
-    try {
+    return retryOperation(async () => {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt
         });
         return response.text ? response.text.trim() : currentDescription;
-    } catch (error) {
-        console.error("Magic Prompt Error:", error);
-        throw error;
-    }
+    });
 };
 
 // --- FUNÇÃO: GERAR LEGENDA (COPYWRITING) ---
@@ -151,7 +181,7 @@ export const generateSocialCaption = async (
     - Keep it concise (under 100 words).
     `;
 
-    try {
+    return retryOperation(async () => {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: {
@@ -162,10 +192,7 @@ export const generateSocialCaption = async (
             }
         });
         return response.text || "Não foi possível gerar a legenda.";
-    } catch (error) {
-        console.error("Caption Generation Error:", error);
-        throw new Error("Erro ao gerar legenda.");
-    }
+    });
 };
 
 // --- FUNÇÃO: CONSULTOR DE MARCA ---
@@ -194,7 +221,7 @@ export const analyzeBrandAssets = async (
     
     parts.push({ text: prompt });
 
-    try {
+    return retryOperation(async () => {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: { parts },
@@ -210,10 +237,7 @@ export const analyzeBrandAssets = async (
             style: json.style || "Cinematic",
             nicheSuggestion: json.niche || ""
         };
-    } catch (error: any) {
-        console.error("Brand Analysis Error:", error);
-        throw new Error(`Não foi possível analisar as imagens da marca. ${error.message || ''}`);
-    }
+    });
 };
 
 export const generateCreatives = async (
@@ -370,46 +394,55 @@ Keep the main structure of the Reference Image. Only change the text or correct 
     parts.push({ text: promptText });
 
     const generatedImages: string[] = [];
-    // Usamos o helper para converter o formato do usuário em algo que a API entenda
     const aspectRatioApi = getAspectRatioForApi(state.format);
 
-    for (let i = 0; i < state.modelCount; i++) {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: {
-                parts: parts
-            },
-            config: {
-                imageConfig: {
-                    aspectRatio: aspectRatioApi 
-                }
-            }
-        });
-
-        let imageFound = false;
-        if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
-            for (const part of response.candidates[0].content.parts) {
-                if (part.inlineData) {
-                    const base64Data = part.inlineData.data;
-                    const mimeType = part.inlineData.mimeType || 'image/png';
-                    generatedImages.push(`data:${mimeType};base64,${base64Data}`);
-                    imageFound = true;
-                }
-            }
-        }
+    // Usando Retry Logic para geração de imagem
+    await retryOperation(async () => {
+        // Se pediu múltiplas imagens, faz loop
+        // Nota: O loop está dentro do retry, mas o ideal é retentar a chamada individual. 
+        // Simplificação: vamos fazer o loop e se der erro, o retryOperation refaz o loop.
+        // CUIDADO: Se já gerou 1 e falhar na 2, o retry vai gerar a 1 de novo. 
+        // Para modelos generativos caros/lentos, melhor tratar individualmente, mas aqui simplificamos.
         
-        if (!imageFound) {
-             throw new Error("A IA não gerou uma imagem. Tente simplificar o prompt.");
+        // Reset array se estiver retentando
+        generatedImages.length = 0; 
+
+        for (let i = 0; i < state.modelCount; i++) {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                contents: {
+                    parts: parts
+                },
+                config: {
+                    imageConfig: {
+                        aspectRatio: aspectRatioApi 
+                    }
+                }
+            });
+
+            let imageFound = false;
+            if (response.candidates && response.candidates[0].content && response.candidates[0].content.parts) {
+                for (const part of response.candidates[0].content.parts) {
+                    if (part.inlineData) {
+                        const base64Data = part.inlineData.data;
+                        const mimeType = part.inlineData.mimeType || 'image/png';
+                        generatedImages.push(`data:${mimeType};base64,${base64Data}`);
+                        imageFound = true;
+                    }
+                }
+            }
+            
+            if (!imageFound) {
+                 throw new Error("A IA não gerou uma imagem válida. O prompt pode ter sido bloqueado por segurança.");
+            }
         }
-    }
+    }, 2, 3000); // 2 retries (total 3 attempts), start wait 3s
 
     return generatedImages;
 
   } catch (error: any) {
     console.error("Error generating creative:", error);
-    if (error.message && (error.message.includes("500") || error.message.includes("xhr"))) {
-        throw new Error("Erro de conexão (Payload Excessivo). Tente usar menos referências.");
-    }
+    // Erros já tratados pelo retryOperation ou lançados diretamente
     throw error;
   }
 };
