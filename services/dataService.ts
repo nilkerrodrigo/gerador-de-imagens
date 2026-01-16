@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
-import { GeneratedCreative, User } from "../types";
+import { GeneratedCreative } from "../types";
 
 const MAX_ITEMS_PER_USER = 12; // Limite para economizar banco de dados
 
@@ -31,14 +31,14 @@ const getLocal = (userId: string): GeneratedCreative[] => {
 // --- SUPABASE LOGIC ---
 
 export const saveCreative = async (userId: string, creative: GeneratedCreative): Promise<GeneratedCreative[]> => {
-    // 1. Fallback para LocalStorage se Supabase não estiver configurado
-    if (!isSupabaseConfigured() || !supabase) {
+    if (!supabase) {
         return saveLocal(userId, creative);
     }
 
     try {
         // 2. Inserir o novo criativo
         // Removemos o ID gerado localmente para deixar o Postgres gerar o UUID
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...creativeData } = creative; 
 
         const { error: insertError } = await supabase
@@ -76,7 +76,7 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
 };
 
 export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[]> => {
-    if (!isSupabaseConfigured() || !supabase) {
+    if (!supabase) {
         return getLocal(userId);
     }
 
@@ -93,7 +93,7 @@ export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[
         return (data || []).map((item: any) => ({
             id: item.id,
             url: item.image_data,
-            timestamp: new Date(item.created_at).getTime(),
+            timestamp: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
             caption: item.caption,
             settings: item.settings
         }));
@@ -110,25 +110,20 @@ export const updateCaptionInDb = async (creativeId: string, caption: string, use
      const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
      localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
 
-     if (!isSupabaseConfigured() || !supabase) {
+     if (!supabase) {
         return;
     }
 
     try {
-        // Tenta atualizar no Supabase
-        // O creativeId deve ser o UUID vindo do fetchCreatives. 
-        // Se a imagem acabou de ser criada localmente e ainda não tem UUID, isso pode falhar silenciosamente, 
-        // mas o saveCreative recarrega a lista com UUIDs reais logo após salvar.
-        
         const { error } = await supabase
             .from('creatives')
             .update({ caption: caption })
             .eq('id', creativeId)
-            .eq('user_id', userId); // Segurança extra
+            .eq('user_id', userId); 
 
         if (error) throw error;
 
     } catch (e) {
         console.error("Erro ao atualizar legenda no Supabase", e);
     }
-}
+};

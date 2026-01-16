@@ -17,13 +17,24 @@ const saveLocalUsers = (users: User[]) => {
 // --- AUTH CORE ---
 
 export const getUsers = async (): Promise<User[]> => {
-  if (isSupabaseConfigured() && supabase) {
+  if (supabase) {
       try {
         const { data, error } = await supabase.from('users').select('*');
         if (!error && data) {
-            // Atualiza cache local
-            saveLocalUsers(data);
-            return data;
+            // Mapeia dados do Supabase (snake_case) para a interface User (camelCase)
+            // Isso evita erro de build "Type mismatch"
+            const mappedUsers: User[] = data.map((u: any) => ({
+                id: u.id,
+                username: u.username,
+                password: u.password,
+                role: u.role,
+                status: u.status,
+                // Supabase retorna string ISO, App espera number (timestamp)
+                createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now()
+            }));
+
+            saveLocalUsers(mappedUsers);
+            return mappedUsers;
         }
       } catch (e) {
         console.warn("Erro ao buscar users no Supabase, usando local.", e);
@@ -46,13 +57,19 @@ export const registerUser = async (username: string, password: string): Promise<
   let savedInSupabase = false;
 
   // 1. Tenta salvar no Supabase
-  if (isSupabaseConfigured() && supabase) {
+  if (supabase) {
       try {
         // Verifica duplicidade
         const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
         if (existing) throw new Error("Usuário já existe.");
 
-        const { error } = await supabase.from('users').insert([newUser]);
+        // Ao inserir, passamos o created_at como ISO string para o banco aceitar
+        const dbUser = {
+            ...newUser,
+            created_at: new Date(newUser.createdAt).toISOString()
+        };
+
+        const { error } = await supabase.from('users').insert([dbUser]);
         if (error) {
             console.error("Supabase insert error:", error);
         } else {
@@ -88,11 +105,16 @@ export const createUserByAdmin = async (username: string, password: string, role
       createdAt: Date.now(),
     };
   
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
         const { data: existing } = await supabase.from('users').select('id').eq('username', username).maybeSingle();
         if (existing) throw new Error("Usuário já existe.");
 
-        const { error } = await supabase.from('users').insert([newUser]);
+        const dbUser = {
+            ...newUser,
+            created_at: new Date(newUser.createdAt).toISOString()
+        };
+
+        const { error } = await supabase.from('users').insert([dbUser]);
         if (error) throw error;
     } 
     
@@ -111,7 +133,7 @@ export const loginUser = async (username: string, password: string): Promise<Use
   let user: User | undefined;
 
   // 1. Tenta buscar no Supabase
-  if (isSupabaseConfigured() && supabase) {
+  if (supabase) {
       try {
         const { data, error } = await supabase
             .from('users')
@@ -120,7 +142,16 @@ export const loginUser = async (username: string, password: string): Promise<Use
             .eq('password', password)
             .maybeSingle();
         
-        if (data) user = data;
+        if (data) {
+             user = {
+                id: data.id,
+                username: data.username,
+                password: data.password,
+                role: data.role,
+                status: data.status,
+                createdAt: data.created_at ? new Date(data.created_at).getTime() : Date.now()
+            };
+        }
       } catch (e) {
           console.warn("Erro login supabase, tentando local", e);
       }
@@ -132,8 +163,7 @@ export const loginUser = async (username: string, password: string): Promise<Use
       user = users.find((u) => u.username === username && u.password === password);
   }
 
-  // 3. RECUPERAÇÃO DE ADMIN (Bootstrap) - Forçado se usuário não existir
-  // Aceita 'admin', '123456' ou '12345' como senha para o resgate
+  // 3. RECUPERAÇÃO DE ADMIN (Bootstrap)
   const isRescuePassword = ['admin', '123456', '12345'].includes(password);
   
   if (!user && username === 'admin' && isRescuePassword) {
@@ -142,29 +172,26 @@ export const loginUser = async (username: string, password: string): Promise<Use
       const adminUser: User = {
           id: 'admin-bootstrap-' + Date.now(),
           username: 'admin',
-          password: password, // Mantém a senha que o user usou
+          password: password, 
           role: 'admin',
           status: 'active',
           createdAt: Date.now()
       };
 
-      // Tenta salvar no Supabase (se configurado)
-      if (isSupabaseConfigured() && supabase) {
+      if (supabase) {
           try {
-             const { error } = await supabase.from('users').insert([adminUser]);
+             const dbAdmin = { ...adminUser, created_at: new Date().toISOString() };
+             const { error } = await supabase.from('users').insert([dbAdmin]);
              if (error) console.error("Erro Supabase Bootstrap:", error);
           } catch(e) { console.error("Erro ao salvar admin no banco:", e); }
       }
       
-      // Salva localmente (Garante acesso imediato mesmo que o banco falhe)
       const users = getLocalUsers();
-      // Remove admins antigos corrompidos se houver
       const cleanUsers = users.filter(u => u.username !== 'admin');
       cleanUsers.push(adminUser);
       saveLocalUsers(cleanUsers);
 
       console.log("✅ Admin recriado com sucesso!");
-      // Retorna o admin novo imediatamente, pulando os checks de erro
       localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
       return adminUser;
   }
@@ -197,7 +224,7 @@ export const getCurrentSession = (): User | null => {
 // --- FUNÇÕES DE ADMIN (Async) ---
 
 export const deleteUser = async (userId: string) => {
-  if (isSupabaseConfigured() && supabase) {
+  if (supabase) {
       await supabase.from('users').delete().eq('id', userId);
   }
   
@@ -213,7 +240,7 @@ export const toggleUserRole = async (userId: string) => {
 
   const newRole = user.role === 'admin' ? 'user' : 'admin';
 
-  if (isSupabaseConfigured() && supabase) {
+  if (supabase) {
       await supabase.from('users').update({ role: newRole }).eq('id', userId);
   }
 
@@ -226,7 +253,7 @@ export const toggleUserRole = async (userId: string) => {
 };
 
 export const approveUser = async (userId: string) => {
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
         await supabase.from('users').update({ status: 'active' }).eq('id', userId);
     }
     
@@ -246,7 +273,7 @@ export const blockUser = async (userId: string) => {
 
     const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
 
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
         await supabase.from('users').update({ status: newStatus }).eq('id', userId);
     }
 
@@ -256,4 +283,4 @@ export const blockUser = async (userId: string) => {
         localUsers[localIndex].status = newStatus;
         saveLocalUsers(localUsers);
     }
-}
+};
