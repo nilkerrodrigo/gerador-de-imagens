@@ -1,0 +1,17 @@
+# Configuração para Google App Engine
+runtime: nodejs18
+
+handlers:
+  # Serve os arquivos estáticos (JS, CSS, Imagens)
+  - url: /assets
+    static_dir: dist/assets
+
+  # Qualquer outra rota (SPA) redireciona para o index.html
+  - url: /.*
+    static_files: dist/index.html
+    upload: dist/index.html
+
+env_variables:
+  # Lembre-se de adicionar sua chave no painel do Google Cloud ou aqui
+  # (Não recomendado commitar a chave real aqui)
+  API_KEY: "SUA_CHAVE_AQUI_SE_NECESSARIO_NO_RUNTIME"
