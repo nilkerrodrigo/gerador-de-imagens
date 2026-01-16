@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "prebuild": "node remove-importmap.js",
+    "build": "npm run prebuild && tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
