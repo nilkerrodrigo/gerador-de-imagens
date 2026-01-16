@@ -1,21 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
-// Helper para inicializar o cliente com a chave correta (Environment Variables)
+// Helper para inicializar o cliente com a chave correta
 const getAiClient = () => {
-  let apiKey = '';
-  try {
-    // Vite substitui process.env.API_KEY por uma string durante o build.
-    // Se estiver rodando sem build, process pode não existir.
-    if (typeof process !== 'undefined' && process.env) {
-         apiKey = process.env.API_KEY || '';
-    } else {
-        // Fallback para substituição direta do Vite
-        apiKey = process.env.API_KEY || ''; 
-    }
-  } catch (e) {
-     // Ignora ReferenceError se process não existir
-  }
+  // O Vite injeta a chave aqui conforme configurado no vite.config.ts
+  // Não usamos process.env para evitar erros de compilação (Build failed)
+  const apiKey = import.meta.env.API_KEY;
 
   if (!apiKey || apiKey === "undefined" || apiKey.trim() === '') {
     throw new Error("ERRO: API Key ausente. Configure no painel de hospedagem (Environment Variables).");
