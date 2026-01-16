@@ -395,7 +395,7 @@ const SidebarPanel = ({
   const [analyzing, setAnalyzing] = useState(false);
 
   // Check if system key exists
-  const hasSystemKey = !!process.env.API_KEY && process.env.API_KEY.length > 0 && process.env.API_KEY !== 'undefined';
+  const hasSystemKey = !!import.meta.env.VITE_GEMINI_API_KEY && import.meta.env.VITE_GEMINI_API_KEY.length > 0 && import.meta.env.VITE_GEMINI_API_KEY !== 'undefined';
 
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
