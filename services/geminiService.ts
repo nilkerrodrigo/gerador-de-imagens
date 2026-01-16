@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
@@ -80,12 +81,9 @@ const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: s
 export const enhancePrompt = async (
     currentDescription: string, 
     category: string, 
-    style: string, 
-    apiKey: string
+    style: string
 ): Promise<string> => {
-    if (!apiKey) throw new Error("API Key necessária para o Prompt Mágico.");
-    
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const prompt = `
     ACT AS A PROFESSIONAL PROMPT ENGINEER.
@@ -119,12 +117,9 @@ export const enhancePrompt = async (
 export const generateSocialCaption = async (
     imageBase64: string, 
     niche: string, 
-    objective: string, 
-    apiKey: string
+    objective: string
 ): Promise<string> => {
-    if (!apiKey) throw new Error("API Key necessária.");
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
 
@@ -164,12 +159,9 @@ export const generateSocialCaption = async (
 
 // --- FUNÇÃO: CONSULTOR DE MARCA ---
 export const analyzeBrandAssets = async (
-    files: File[],
-    apiKey: string
+    files: File[]
 ): Promise<{ palette: string; style: string; nicheSuggestion: string }> => {
-    if (!apiKey) throw new Error("API Key necessária para Análise de Marca.");
-    
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const parts: any[] = await Promise.all(files.map(file => fileToGenerativePart(file)));
     
     const prompt = `
@@ -216,13 +208,7 @@ export const generateCreatives = async (
   state: AppState
 ): Promise<string[]> => {
   try {
-    const apiKey = state.apiKey || process.env.API_KEY;
-    
-    if (!apiKey) {
-      throw new Error("Chave API ausente. Insira sua chave no menu lateral ou configure a variável de ambiente.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     // --- CONSTRUÇÃO DO PROMPT AVANÇADA ---
 

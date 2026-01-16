@@ -1,5 +1,5 @@
+
 export interface AppState {
-  apiKey: string;
   category: string;
   modelCount: number;
   objective: string;

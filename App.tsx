@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
 import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
-import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; // NEW IMPORT
-import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X } from 'lucide-react';
+import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
+import { isSupabaseConfigured } from './lib/supabaseClient'; // Import check
+import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
 // --- Login Screen Component ---
@@ -374,8 +376,6 @@ const SidebarPanel = ({
   onOpenAdmin: () => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
-  const [isApiLocked, setIsApiLocked] = useState(true);
-  const [showApiInput, setShowApiInput] = useState(false); // New state to toggle visibility
 
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
@@ -391,11 +391,9 @@ const SidebarPanel = ({
 
   const handleBrandAnalysis = async (files: File[]) => {
       if (!files || files.length === 0) return;
-      const apiKey = state.apiKey || process.env.API_KEY;
-      if (!apiKey) { alert("Por favor, insira sua Chave API primeiro."); return; }
       setAnalyzing(true);
       try {
-          const result = await analyzeBrandAssets(files, apiKey);
+          const result = await analyzeBrandAssets(files);
           if (result.palette) onChange('colorPalette', result.palette);
           const matchedStyle = STYLES.find(s => s.value === result.style);
           if (matchedStyle) onChange('style', matchedStyle.value);
@@ -441,41 +439,8 @@ const SidebarPanel = ({
            </div>
         </div>
 
-        {/* API KEY & Batch */}
+        {/* Batch */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center text-xs font-bold text-textMuted uppercase tracking-wider">
-              <Key className="w-3 h-3 mr-2 text-primary" />
-              Chave API
-            </label>
-            <button 
-                onClick={() => setShowApiInput(!showApiInput)} 
-                className={`p-1.5 rounded transition-colors ${showApiInput ? 'bg-primary/20 text-primary' : 'hover:bg-white/5 text-textMuted'}`}
-                title="Configurar API"
-            >
-                <Settings className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          
-          {showApiInput && (
-              <div className="relative animate-fadeIn">
-                <input
-                  type="password"
-                  disabled={isApiLocked}
-                  value={state.apiKey}
-                  onChange={(e) => onChange('apiKey', e.target.value)}
-                  placeholder="Sua chave API..."
-                  className={`w-full bg-surface border border-border rounded-lg pl-3 pr-10 py-2 text-xs text-white focus:outline-none focus:border-primary transition-all font-mono ${isApiLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                />
-                <button 
-                    onClick={() => setIsApiLocked(!isApiLocked)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-white transition-colors"
-                >
-                    {isApiLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5 text-accent" />}
-                </button>
-            </div>
-          )}
-
           <div>
              <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
                Variações
@@ -665,6 +630,7 @@ const SidebarPanel = ({
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false); // NEW STATE
   
   // App Logic State
   const [loading, setLoading] = useState(false);
@@ -673,7 +639,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedCreative[]>([]);
   const [state, setState] = useState<AppState>({
-    apiKey: 'AIzaSyCtdWXyOuKtx1IbQXiWi2zvZotc_ikmDGc',
     category: 'Instagram Post',
     modelCount: 1,
     objective: 'High CTR',
@@ -707,6 +672,9 @@ export default function App() {
 
   // --- PERSISTENCE (Data Service Integration) ---
   useEffect(() => {
+    // Verificar conexão com nuvem
+    setIsCloudConnected(isSupabaseConfigured());
+
     if (!currentUser) return; // Only load app state if logged in
     
     // Load Settings (Still local for user preferences)
@@ -772,30 +740,26 @@ export default function App() {
      setLoading(true);
      try {
          const file = await urlToFile(creative.url, `remix_base_${creative.id}.jpg`, 'image/jpeg');
-         setState(prev => ({ ...prev, ...creative.settings, apiKey: prev.apiKey, referenceImages: [file] }));
+         setState(prev => ({ ...prev, ...creative.settings, referenceImages: [file] }));
          window.scrollTo({ top: 0, behavior: 'smooth' });
      } catch (e) { console.error("Failed to prepare remix", e); setError("Erro ao preparar imagem para edição."); } finally { setLoading(false); }
   };
 
   const handleMagicPrompt = async () => {
     if (!state.description) return;
-    const apiKey = state.apiKey || process.env.API_KEY;
-    if (!apiKey) { setError("Chave API necessária para usar o Magic Prompt."); return; }
     setMagicLoading(true);
     setError(null); 
     try {
-        const enhanced = await enhancePrompt(state.description, state.category, state.style, apiKey);
+        const enhanced = await enhancePrompt(state.description, state.category, state.style);
         handleStateChange('description', enhanced);
-    } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique sua API Key."); } finally { setMagicLoading(false); }
+    } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique se a API Key está configurada corretamente no .env"); } finally { setMagicLoading(false); }
   };
 
   const handleGenerateCaption = async (creative: GeneratedCreative) => {
      if (creative.caption) return; 
-     const apiKey = state.apiKey || process.env.API_KEY;
-     if (!apiKey) { alert("API Key necessária para gerar legendas."); return; }
      setCaptionLoading(creative.id);
      try {
-         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective, apiKey);
+         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective);
          
          // Atualiza estado local
          setGeneratedImages(prev => prev.map(img => img.id === creative.id ? { ...img, caption } : img));
@@ -835,7 +799,7 @@ export default function App() {
         settings: currentSettings
       }));
 
-      // Update UI
+      // Update UI (Optimistic)
       setGeneratedImages(prev => [...newCreatives, ...prev]);
 
       // Persist (Save to DB/Local)
@@ -897,6 +861,13 @@ export default function App() {
              <button onClick={() => { if(confirm("Deseja limpar toda a galeria e o histórico?")) { setGeneratedImages([]); localStorage.removeItem(`AETHER_GALLERY_${currentUser.id}`); } }} className="group flex items-center space-x-2 text-xs font-medium text-textMuted hover:text-white transition-colors">
                <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" /> <span>Limpar Tela</span>
              </button>
+             
+             {/* Cloud Status Indicator */}
+             <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${isCloudConnected ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-surface border-white/5 text-textMuted'}`} title={isCloudConnected ? "Conectado à Nuvem (Supabase)" : "Modo Offline (LocalStorage)"}>
+                {isCloudConnected ? <Database className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
+                <span className="text-[10px] font-bold tracking-widest">{isCloudConnected ? "NUVEM ATIVA" : "MODO LOCAL"}</span>
+             </div>
+
              <div className="flex items-center space-x-2 px-3 py-1.5 bg-surface/50 rounded-full border border-white/5">
                <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-yellow-500 animate-ping' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.5)]`}></div>
                <span className="text-[10px] font-bold tracking-widest text-textMuted">SISTEMA {loading ? 'OCUPADO' : 'PRONTO'}</span>

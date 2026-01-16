@@ -38,19 +38,22 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
 
     try {
         // 2. Inserir o novo criativo
+        // Removemos o ID gerado localmente para deixar o Postgres gerar o UUID
+        const { id, ...creativeData } = creative; 
+
         const { error: insertError } = await supabase
             .from('creatives')
             .insert([{
-                user_id: userId, // Em produção, idealmente usaríamos o ID do auth.users
-                image_data: creative.url, // Base64 ou URL pública
+                user_id: userId, 
+                image_data: creative.url, // Base64
                 settings: creative.settings,
+                caption: creative.caption || null,
                 created_at: new Date().toISOString()
             }]);
 
         if (insertError) throw insertError;
 
         // 3. Gerenciar limite (Manter apenas os últimos X)
-        // Primeiro, pegamos todos os IDs ordenados por data (do mais novo para o mais velho)
         const { data: allItems, error: fetchError } = await supabase
             .from('creatives')
             .select('id')
@@ -58,14 +61,9 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
             .order('created_at', { ascending: false });
 
         if (!fetchError && allItems && allItems.length > MAX_ITEMS_PER_USER) {
-            // Identificar quais deletar (todos após o índice MAX_ITEMS_PER_USER - 1)
             const itemsToDelete = allItems.slice(MAX_ITEMS_PER_USER).map(i => i.id);
-            
             if (itemsToDelete.length > 0) {
-                await supabase
-                    .from('creatives')
-                    .delete()
-                    .in('id', itemsToDelete);
+                await supabase.from('creatives').delete().in('id', itemsToDelete);
             }
         }
 
@@ -92,12 +90,11 @@ export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[
 
         if (error) throw error;
 
-        // Mapear do formato DB para formato App
         return (data || []).map((item: any) => ({
             id: item.id,
             url: item.image_data,
             timestamp: new Date(item.created_at).getTime(),
-            caption: item.caption, // Supondo que adicionaremos essa coluna
+            caption: item.caption,
             settings: item.settings
         }));
 
@@ -108,29 +105,30 @@ export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[
 };
 
 export const updateCaptionInDb = async (creativeId: string, caption: string, userId: string) => {
+     // Atualiza Localmente sempre para garantir consistência visual imediata
+     const items = getLocal(userId);
+     const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
+     localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
+
      if (!isSupabaseConfigured() || !supabase) {
-        // Atualiza localmente
-        const items = getLocal(userId);
-        const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
-        localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
         return;
     }
 
     try {
-        // Tenta atualizar no Supabase (assumindo que o ID do banco bate, mas aqui o ID local é gerado randomicamente no mock)
-        // NOTA: Num cenário real full-supabase, o ID seria UUID do banco.
-        // Como estamos num ambiente híbrido, isso pode falhar se o item não existir no banco.
-        // Vamos apenas tentar atualizar baseados no created_at ou id se for compatível.
+        // Tenta atualizar no Supabase
+        // O creativeId deve ser o UUID vindo do fetchCreatives. 
+        // Se a imagem acabou de ser criada localmente e ainda não tem UUID, isso pode falhar silenciosamente, 
+        // mas o saveCreative recarrega a lista com UUIDs reais logo após salvar.
         
-        // Para simplificar este passo de "preparação", vamos assumir que o fluxo principal é salvar novo.
-        // A atualização de legenda exigiria que o ID local fosse o mesmo do banco.
-        
-        // Solução Híbrida Simplificada: Atualizar Local também para garantir UI responsiva
-        const items = getLocal(userId);
-        const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
-        localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
+        const { error } = await supabase
+            .from('creatives')
+            .update({ caption: caption })
+            .eq('id', creativeId)
+            .eq('user_id', userId); // Segurança extra
+
+        if (error) throw error;
 
     } catch (e) {
-        console.error("Erro ao atualizar legenda", e);
+        console.error("Erro ao atualizar legenda no Supabase", e);
     }
 }
