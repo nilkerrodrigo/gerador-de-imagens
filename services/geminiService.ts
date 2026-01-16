@@ -2,6 +2,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
+// Helper para inicializar o cliente com a chave correta (Custom ou Env)
+const getAiClient = (customKey?: string) => {
+  const apiKey = customKey && customKey.trim() !== "" ? customKey : process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key não encontrada. Configure o .env ou insira sua chave nas configurações.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
 // Helper robusto para garantir proporções aceitas pela API
 const getAspectRatioForApi = (formatValue: string): string => {
   // A API do Gemini suporta estritamente: "1:1", "3:4", "4:3", "9:16", "16:9"
@@ -81,9 +90,10 @@ const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: s
 export const enhancePrompt = async (
     currentDescription: string, 
     category: string, 
-    style: string
+    style: string,
+    apiKey?: string
 ): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiClient(apiKey);
     
     const prompt = `
     ACT AS A PROFESSIONAL PROMPT ENGINEER.
@@ -117,9 +127,10 @@ export const enhancePrompt = async (
 export const generateSocialCaption = async (
     imageBase64: string, 
     niche: string, 
-    objective: string
+    objective: string,
+    apiKey?: string
 ): Promise<string> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiClient(apiKey);
     
     const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
 
@@ -159,9 +170,10 @@ export const generateSocialCaption = async (
 
 // --- FUNÇÃO: CONSULTOR DE MARCA ---
 export const analyzeBrandAssets = async (
-    files: File[]
+    files: File[],
+    apiKey?: string
 ): Promise<{ palette: string; style: string; nicheSuggestion: string }> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiClient(apiKey);
     const parts: any[] = await Promise.all(files.map(file => fileToGenerativePart(file)));
     
     const prompt = `
@@ -205,10 +217,11 @@ export const analyzeBrandAssets = async (
 };
 
 export const generateCreatives = async (
-  state: AppState
+  state: AppState,
+  apiKey?: string
 ): Promise<string[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAiClient(apiKey);
 
     // --- CONSTRUÇÃO DO PROMPT AVANÇADA ---
 

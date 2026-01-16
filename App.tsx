@@ -5,7 +5,7 @@ import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCap
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
 import { isSupabaseConfigured } from './lib/supabaseClient'; // Import check
-import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database } from 'lucide-react';
+import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
 // --- Login Screen Component ---
@@ -365,7 +365,9 @@ const SidebarPanel = ({
   onLogoChange,
   currentUser,
   onLogout,
-  onOpenAdmin
+  onOpenAdmin,
+  customApiKey,
+  setCustomApiKey
 }: { 
   state: AppState; 
   onChange: (key: keyof AppState, value: any) => void;
@@ -374,8 +376,11 @@ const SidebarPanel = ({
   currentUser: User;
   onLogout: () => void;
   onOpenAdmin: () => void;
+  customApiKey: string;
+  setCustomApiKey: (key: string) => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
@@ -393,7 +398,7 @@ const SidebarPanel = ({
       if (!files || files.length === 0) return;
       setAnalyzing(true);
       try {
-          const result = await analyzeBrandAssets(files);
+          const result = await analyzeBrandAssets(files, customApiKey);
           if (result.palette) onChange('colorPalette', result.palette);
           const matchedStyle = STYLES.find(s => s.value === result.style);
           if (matchedStyle) onChange('style', matchedStyle.value);
@@ -439,6 +444,33 @@ const SidebarPanel = ({
            </div>
         </div>
 
+        {/* API Key Section */}
+        <div className="p-4 bg-surface/30 rounded-xl border border-white/5 space-y-2">
+            <label className="text-[10px] font-bold text-textMuted uppercase tracking-wider flex items-center">
+                <Key className="w-3 h-3 mr-1.5" /> Chave Gemini (Opcional)
+            </label>
+            <div className="relative">
+                <input 
+                    type={showKey ? "text" : "password"} 
+                    value={customApiKey}
+                    onChange={(e) => setCustomApiKey(e.target.value)}
+                    placeholder="Usar padrão do sistema"
+                    className="w-full bg-background border border-border rounded-lg pl-3 pr-8 py-2 text-xs text-white focus:outline-none focus:border-primary placeholder-textMuted/50 transition-colors"
+                />
+                <button 
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-textMuted hover:text-white"
+                >
+                    {showKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+            </div>
+            {customApiKey && (
+                 <p className="text-[9px] text-green-400 flex items-center"><Check className="w-2.5 h-2.5 mr-1" /> Chave personalizada ativa</p>
+            )}
+        </div>
+
+        <div className="w-full h-px bg-border/50"></div>
+
         {/* Batch */}
         <div className="space-y-4">
           <div>
@@ -462,8 +494,6 @@ const SidebarPanel = ({
              </div>
           </div>
         </div>
-
-        <div className="w-full h-px bg-border/50"></div>
 
         {/* Categories */}
         <div>
@@ -631,6 +661,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false); // NEW STATE
+  const [customApiKey, setCustomApiKey] = useState(''); // Estado da API Key
   
   // App Logic State
   const [loading, setLoading] = useState(false);
@@ -656,6 +687,18 @@ export default function App() {
     style: 'Cinematic',
     format: '1:1'
   });
+
+  // Carregar API Key do LocalStorage
+  useEffect(() => {
+    const savedKey = localStorage.getItem('AETHER_CUSTOM_KEY');
+    if (savedKey) setCustomApiKey(savedKey);
+  }, []);
+
+  // Salvar API Key quando mudar
+  useEffect(() => {
+    if (customApiKey) localStorage.setItem('AETHER_CUSTOM_KEY', customApiKey);
+    else localStorage.removeItem('AETHER_CUSTOM_KEY');
+  }, [customApiKey]);
 
   // Check Session on Mount
   useEffect(() => {
@@ -750,16 +793,16 @@ export default function App() {
     setMagicLoading(true);
     setError(null); 
     try {
-        const enhanced = await enhancePrompt(state.description, state.category, state.style);
+        const enhanced = await enhancePrompt(state.description, state.category, state.style, customApiKey);
         handleStateChange('description', enhanced);
-    } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique se a API Key está configurada corretamente no .env"); } finally { setMagicLoading(false); }
+    } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique se a API Key está configurada corretamente."); } finally { setMagicLoading(false); }
   };
 
   const handleGenerateCaption = async (creative: GeneratedCreative) => {
      if (creative.caption) return; 
      setCaptionLoading(creative.id);
      try {
-         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective);
+         const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective, customApiKey);
          
          // Atualiza estado local
          setGeneratedImages(prev => prev.map(img => img.id === creative.id ? { ...img, caption } : img));
@@ -779,7 +822,7 @@ export default function App() {
     setError(null);
     setLoading(true);
     try {
-      const images = await generateCreatives(state);
+      const images = await generateCreatives(state, customApiKey);
       const currentSettings = {
         category: state.category,
         description: state.description,
@@ -843,6 +886,8 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdmin={() => setShowAdminPanel(true)}
+        customApiKey={customApiKey}
+        setCustomApiKey={setCustomApiKey}
       />
 
       {/* Main Content */}
