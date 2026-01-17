@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
-import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/supabaseService'
-import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
+import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
+import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/supabaseService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
 import { isSupabaseConfigured } from './lib/supabaseClient'; 
 import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff } from 'lucide-react';
