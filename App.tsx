@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
-import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
+import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/supabaseService'
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
 import { isSupabaseConfigured } from './lib/supabaseClient'; 
