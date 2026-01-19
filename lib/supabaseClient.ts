@@ -1,9 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
-// Acessamos as variáveis de ambiente de forma segura para evitar crashes
-// caso import.meta.env esteja undefined (ex: ambientes fora do padrão Vite).
-
 const getEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -20,14 +17,19 @@ const getEnv = (key: string) => {
 const SUPABASE_URL = getEnv('VITE_SUPABASE_URL');
 const SUPABASE_ANON_KEY = getEnv('VITE_SUPABASE_ANON_KEY');
 
-// Verifica se as chaves existem e são válidas (não undefined ou string vazia)
+// Verifica se as chaves existem e parecem válidas
 const isValid = 
   SUPABASE_URL && 
   typeof SUPABASE_URL === 'string' &&
   SUPABASE_URL.startsWith('http') && 
+  !SUPABASE_URL.includes('your-project') && // Verifica se não é o placeholder padrão
   SUPABASE_ANON_KEY && 
   typeof SUPABASE_ANON_KEY === 'string' &&
   SUPABASE_ANON_KEY.length > 20;
+
+if (!isValid) {
+    console.log("⚠️ Supabase não configurado ou chaves inválidas. O app funcionará em MODO OFFLINE (LocalStorage).");
+}
 
 export const supabase = isValid
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 

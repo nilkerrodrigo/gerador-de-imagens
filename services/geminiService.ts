@@ -1,16 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
+// Declare process for frontend context (will be replaced by Vite define)
+declare const process: { env: { API_KEY: string } };
+
 // Helper para inicializar o cliente com a chave correta
 const getAiClient = () => {
-  // O Vite injeta a chave aqui conforme configurado no vite.config.ts
-  // Não usamos process.env para evitar erros de compilação (Build failed)
-  const apiKey = import.meta.env.API_KEY;
-
-  if (!apiKey || apiKey === "undefined" || apiKey.trim() === '') {
-    throw new Error("ERRO: API Key ausente. Configure no painel de hospedagem (Environment Variables).");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // --- RETRY LOGIC HELPER ---
