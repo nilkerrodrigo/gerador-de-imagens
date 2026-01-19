@@ -16,6 +16,11 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [firebaseStatus, setFirebaseStatus] = useState<boolean>(false);
+
+  useEffect(() => {
+      setFirebaseStatus(isFirebaseConfigured());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +56,20 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
              <Sparkles className="text-white w-6 h-6" />
            </div>
            <h1 className="text-2xl font-bold text-white tracking-tight">Azul Creative IA</h1>
+           
+           <div className={`mt-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center border ${firebaseStatus ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-white/5 border-white/10 text-textMuted'}`}>
+               {firebaseStatus ? (
+                   <>
+                     <Flame className="w-3 h-3 mr-1.5" />
+                     Nuvem Conectada
+                   </>
+               ) : (
+                   <>
+                     <CloudOff className="w-3 h-3 mr-1.5" />
+                     Modo Local (Offline)
+                   </>
+               )}
+           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
