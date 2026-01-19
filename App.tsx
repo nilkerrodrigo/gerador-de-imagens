@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
 import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser, checkDatabaseConnection } from './services/authService';
-import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
+import { saveCreative, fetchCreatives, updateCaptionInDb, deleteCreative } from './services/dataService'; 
 import { isFirebaseConfigured } from './lib/firebaseClient'; 
 import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink, RefreshCw } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
@@ -896,6 +896,21 @@ export default function App() {
          alert("Erro ao gerar legenda."); 
      } finally { setCaptionLoading(null); }
   };
+  
+  const handleDeleteImage = async (id: string) => {
+     if (!currentUser) return;
+     if (!confirm("Tem certeza que deseja apagar esta imagem? Esta ação não pode ser desfeita.")) return;
+     
+     // Otimistic update
+     setGeneratedImages(prev => prev.filter(i => i.id !== id));
+     
+     try {
+         const updatedList = await deleteCreative(currentUser.id, id);
+         setGeneratedImages(updatedList);
+     } catch(e) {
+         console.error("Erro ao deletar", e);
+     }
+  };
 
   const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); alert("Copiado!"); };
 
@@ -1090,9 +1105,12 @@ export default function App() {
                     <div className="relative group overflow-hidden">
                         <img src={img.url} alt="Generated" className="w-full h-auto transition-transform duration-700 group-hover:scale-105" />
                         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                           <div className="flex items-center space-x-2 translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
-                              <button onClick={() => handleRemix(img)} className="bg-white/10 backdrop-blur-md text-white border border-white/20 p-2.5 rounded-lg hover:bg-primary hover:border-primary transition-all flex items-center justify-center" title="Editar Texto / Remixar"><Edit3 className="w-4 h-4" /></button>
-                              <button onClick={() => handleDownload(img.url, img.id)} className="flex-1 bg-white text-black py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center" title="Baixar"><Download className="w-3 h-3 mr-2" /> Baixar</button>
+                           <div className="flex items-center justify-between translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-75">
+                               <div className="flex items-center space-x-2">
+                                  <button onClick={() => handleRemix(img)} className="bg-white/10 backdrop-blur-md text-white border border-white/20 p-2.5 rounded-lg hover:bg-primary hover:border-primary transition-all flex items-center justify-center" title="Editar Texto / Remixar"><Edit3 className="w-4 h-4" /></button>
+                                  <button onClick={() => handleDownload(img.url, img.id)} className="bg-white text-black px-4 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-colors flex items-center justify-center" title="Baixar"><Download className="w-3 h-3 mr-2" /> Baixar</button>
+                               </div>
+                               <button onClick={() => handleDeleteImage(img.id)} className="bg-red-500/20 backdrop-blur-md text-red-400 border border-red-500/30 p-2.5 rounded-lg hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="Excluir Imagem"><Trash2 className="w-4 h-4" /></button>
                            </div>
                         </div>
                     </div>

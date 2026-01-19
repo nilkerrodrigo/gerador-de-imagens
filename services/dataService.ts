@@ -13,6 +13,9 @@ const saveLocal = (userId: string, creative: GeneratedCreative) => {
     const stored = localStorage.getItem(key);
     let items: GeneratedCreative[] = stored ? JSON.parse(stored) : [];
     
+    // Remove duplicatas por ID se houver
+    items = items.filter(i => i.id !== creative.id);
+    
     items = [creative, ...items];
     if (items.length > MAX_ITEMS_PER_USER) {
         items = items.slice(0, MAX_ITEMS_PER_USER);
@@ -47,11 +50,10 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
         };
 
         // Salvar no Firestore
+        // Nota: creative.id local é sobrescrito pelo ID do Firestore, mas mantemos referência se precisar
         await addDoc(collection(_db, COLLECTION_NAME), docData);
 
         // Limpeza automática (Manter apenas os últimos MAX_ITEMS)
-        // Nota: Firestore não tem "capped collections" nativas simples, 
-        // então buscamos todos e deletamos os excedentes.
         const q = query(
             collection(_db, COLLECTION_NAME), 
             where("user_id", "==", userId),
@@ -71,9 +73,8 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
     } catch (error: any) {
         // Se der erro (ex: imagem muito grande para documento > 1MB ou permissão), salva localmente
         if (error.code === 'resource-exhausted' || error.message.includes('size')) {
-            alert("Imagem muito grande para a nuvem. Salvando apenas localmente.");
+            console.warn("Imagem muito grande para a nuvem. Salvando apenas localmente.");
         }
-        // Permissão ou outro erro de rede
         return saveLocal(userId, creative);
     }
 };
@@ -106,11 +107,11 @@ export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[
             });
         });
 
+        // Se não tiver nada na nuvem, tenta pegar local (modo híbrido)
         if (items.length === 0) return getLocal(userId);
         return items;
 
     } catch (error: any) {
-        // Se for erro de permissão (ex: regras bloqueando leitura), fallback silencioso para local
         if (error.code === 'permission-denied') {
             return getLocal(userId);
         }
@@ -129,12 +130,31 @@ export const updateCaptionInDb = async (creativeId: string, caption: string, use
      if (!_db) return;
 
      try {
-         // Firestore update requires the doc ID. 
-         // Se o creativeId for um ID do Firestore, funciona direto.
-         // Se for local (gerado com Math.random), vai falhar, e tudo bem (fica só local).
+         // Firestore update
+         // Tenta atualizar assumindo que creativeId é um ID válido do Doc
          const creativeRef = doc(_db, COLLECTION_NAME, creativeId);
          await updateDoc(creativeRef, { caption: caption });
      } catch (e) {
-         // Silencioso
+         // Se falhar (ex: ID local), ignora silenciosamente
      }
+};
+
+export const deleteCreative = async (userId: string, creativeId: string): Promise<GeneratedCreative[]> => {
+    // 1. Deletar Localmente
+    const localItems = getLocal(userId);
+    const newLocalItems = localItems.filter(i => i.id !== creativeId);
+    localStorage.setItem(getLocalKey(userId), JSON.stringify(newLocalItems));
+
+    const _db = db;
+    if (!_db) return newLocalItems;
+
+    // 2. Deletar da Nuvem
+    try {
+        await deleteDoc(doc(_db, COLLECTION_NAME, creativeId));
+        // Retorna a lista atualizada da nuvem
+        return await fetchCreatives(userId);
+    } catch (e) {
+        // Se falhar na nuvem (ex: era um item apenas local), retorna a lista local filtrada
+        return newLocalItems;
+    }
 };
