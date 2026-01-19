@@ -68,11 +68,11 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
         return await fetchCreatives(userId);
 
     } catch (error: any) {
-        console.error("Erro ao salvar no Firestore:", error);
-        // Se der erro (ex: imagem muito grande para documento > 1MB), salva localmente
+        // Se der erro (ex: imagem muito grande para documento > 1MB ou permissão), salva localmente
         if (error.code === 'resource-exhausted' || error.message.includes('size')) {
             alert("Imagem muito grande para a nuvem. Salvando apenas localmente.");
         }
+        // Permissão ou outro erro de rede
         return saveLocal(userId, creative);
     }
 };
@@ -107,7 +107,11 @@ export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[
         if (items.length === 0) return getLocal(userId);
         return items;
 
-    } catch (error) {
+    } catch (error: any) {
+        // Se for erro de permissão (ex: regras bloqueando leitura), fallback silencioso para local
+        if (error.code === 'permission-denied') {
+            return getLocal(userId);
+        }
         console.error("Erro ao buscar do Firestore:", error);
         return getLocal(userId);
     }
@@ -128,6 +132,6 @@ export const updateCaptionInDb = async (creativeId: string, caption: string, use
          const creativeRef = doc(db, COLLECTION_NAME, creativeId);
          await updateDoc(creativeRef, { caption: caption });
      } catch (e) {
-         console.warn("Não foi possível atualizar legenda na nuvem (provavelmente item local).");
+         // Silencioso
      }
 };

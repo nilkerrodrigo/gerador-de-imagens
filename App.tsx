@@ -4,7 +4,7 @@ import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCap
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser, checkDatabaseConnection } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
 import { isFirebaseConfigured } from './lib/firebaseClient'; 
-import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink } from 'lucide-react';
+import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink, RefreshCw } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
 // --- Components ---
@@ -39,7 +39,11 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
         onLoginSuccess(user);
       }
     } catch (err: any) {
-      setError(err.message);
+      if (err.message.includes("Missing or insufficient permissions")) {
+         setError("Regras de Segurança atualizando... Aguarde 1 minuto e tente novamente.");
+      } else {
+         setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +78,7 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Usuário</label>
+            <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">E-mail ou Usuário</label>
             <div className="relative">
               <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textMuted" />
               <input 
@@ -82,7 +86,7 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
-                placeholder="Seu nome de usuário"
+                placeholder="Seu e-mail ou nome de usuário"
                 required
               />
             </div>
@@ -139,6 +143,7 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
   );
 };
 
+// ... SettingsModal mantido igual ...
 const SettingsModal = ({ onClose }: { onClose: () => void }) => {
     const [apiKey, setApiKey] = useState('');
     const [savedKey, setSavedKey] = useState('');
@@ -224,6 +229,7 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   const [usersList, setUsersList] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [loading, setLoading] = useState(false);
+  const [dbStatus, setDbStatus] = useState<string>("");
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
@@ -232,6 +238,10 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   const refreshList = async () => {
       setLoading(true);
       try {
+          // Check DB health
+          const status = await checkDatabaseConnection();
+          setDbStatus(status);
+          
           const list = await getUsers();
           setUsersList(list);
       } catch (e) {
@@ -265,7 +275,7 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
       e.preventDefault();
       try {
           await createUserByAdmin(newUsername, newPassword, newRole);
-          setCreateMsg(`Usuário ${newUsername} criado com sucesso!`);
+          setCreateMsg(`Usuário ${newUsername} criado com sucesso na nuvem!`);
           setNewUsername('');
           setNewPassword('');
           setNewRole('user');
@@ -301,6 +311,13 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                 </div>
              </div>
              <div className="flex items-center space-x-4">
+                 <button 
+                    onClick={refreshList} 
+                    disabled={loading}
+                    className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors" title="Atualizar Lista"
+                 >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                 </button>
                  <a 
                    href="https://console.firebase.google.com/u/0/project/azul-creative-ia/authentication/users" 
                    target="_blank" 
@@ -323,6 +340,12 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                  </button>
              </div>
           </div>
+          
+          {dbStatus.includes("ALERTA") && (
+              <div className="bg-yellow-500/10 border-b border-yellow-500/20 p-2 text-center text-xs text-yellow-200 font-medium">
+                  {dbStatus}
+              </div>
+          )}
 
           {activeTab === 'list' && (
             <div className="px-6 py-4 bg-surface/50 border-b border-border grid grid-cols-3 gap-4">
@@ -354,17 +377,17 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
              {activeTab === 'create' && (
                  <div className="max-w-md mx-auto mt-10 p-8 bg-sidebar border border-border rounded-2xl shadow-lg">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center"><UserPlus className="w-5 h-5 mr-2 text-accent" /> Cadastrar Usuário</h3>
-                    <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-200">
-                        <p><strong>Nota de Segurança:</strong> Ao criar usuários manualmente aqui, eles serão salvos no banco de dados local ou Firestore, mas não criarão automaticamente credenciais de Auth se estiver usando o Firebase Client. Para criar acessos reais no Firebase, use a página de Registro ou o Console do Firebase.</p>
+                    <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded text-xs text-primary/80">
+                        <p><strong>Modo Super Admin:</strong> Usuários criados aqui serão registrados diretamente no Firebase Authentication e sincronizados com o banco de dados, permitindo login imediato.</p>
                     </div>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Login</label>
-                            <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-white focus:border-primary focus:outline-none" />
+                            <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Login / Username</label>
+                            <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} required placeholder="Ex: joaosilva" className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-white focus:border-primary focus:outline-none" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Senha</label>
-                            <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-white focus:border-primary focus:outline-none" />
+                            <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-white focus:border-primary focus:outline-none" />
                         </div>
                         <div>
                              <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Função</label>
@@ -380,7 +403,7 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                              </div>
                         </div>
                         <button type="submit" className="w-full bg-primary hover:bg-primaryHover text-white py-2.5 rounded-lg font-bold text-sm uppercase tracking-wide mt-4">
-                            Criar Usuário Local
+                            CRIAR CONTA (FIREBASE)
                         </button>
                         {createMsg && <p className="text-center text-green-400 text-xs mt-2">{createMsg}</p>}
                     </form>
@@ -465,10 +488,11 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   );
 };
 
+// ... Sidebar e App mantidos iguais ...
 const SidebarPanel = ({ 
   state, 
   onChange, 
-  onFileChange,
+  onFileChange, 
   onLogoChange,
   currentUser,
   onLogout,
@@ -740,7 +764,7 @@ const SidebarPanel = ({
   );
 };
 
-// --- Main App ---
+// ... App mantido igual ...
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);

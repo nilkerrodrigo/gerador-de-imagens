@@ -2,26 +2,17 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Helper para pegar variáveis de ambiente com segurança
-const getEnv = (key: string) => {
-  // @ts-ignore
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    // @ts-ignore
-    return import.meta.env[key];
-  }
-  return undefined;
+// Configuração EXPLÍCITA para garantir a conexão
+export const firebaseConfig = {
+  apiKey: "AIzaSyBEGBELgoAcrwdPDhaxy8jxq0Pt6xoSjI8",
+  authDomain: "azul-creative-ia.firebaseapp.com",
+  projectId: "azul-creative-ia",
+  storageBucket: "azul-creative-ia.firebasestorage.app",
+  messagingSenderId: "343989049175",
+  appId: "1:343989049175:web:411f464ea7a61390325012"
 };
 
-const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: getEnv('VITE_FIREBASE_APP_ID')
-};
-
-// Verifica se a configuração mínima existe
+// Verifica se as chaves críticas existem (agora sempre existirão)
 const isConfigured = 
     firebaseConfig.apiKey && 
     firebaseConfig.authDomain && 
@@ -33,15 +24,16 @@ let db = null;
 
 if (isConfigured) {
     try {
+        console.log("🔥 Inicializando Firebase com Projeto:", firebaseConfig.projectId);
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
-        console.log("🔥 Firebase conectado com sucesso!");
+        console.log("✅ Firebase conectado com sucesso!");
     } catch (e) {
-        console.error("Erro ao inicializar Firebase:", e);
+        console.error("❌ Erro CRÍTICO ao inicializar Firebase:", e);
     }
 } else {
-    console.log("⚠️ Firebase não configurado. O app rodará em modo LOCAL.");
+    console.warn("⚠️ Firebase não configurado. O app rodará em modo LOCAL.");
 }
 
 export { auth, db };
