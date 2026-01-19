@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, GeneratedCreative, User } from './types';
 import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCaption } from './services/geminiService';
-import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser } from './services/authService';
+import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser, checkDatabaseConnection } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb } from './services/dataService'; 
 import { isFirebaseConfigured } from './lib/firebaseClient'; 
-import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame } from 'lucide-react';
+import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
 // --- Components ---
@@ -271,10 +271,26 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                 </div>
                 <div>
                    <h2 className="text-xl font-bold text-white">Painel Administrativo</h2>
-                   <p className="text-xs text-textMuted uppercase tracking-wider">Gestão de Acessos</p>
+                   <p className="text-xs text-textMuted uppercase tracking-wider flex items-center">
+                       Gestão de Acessos • 
+                       {isFirebaseConfigured() ? (
+                           <span className="text-orange-400 ml-1 flex items-center"><Flame className="w-3 h-3 mr-1"/> Nuvem Ativa</span>
+                       ) : (
+                           <span className="text-textMuted ml-1 flex items-center"><CloudOff className="w-3 h-3 mr-1"/> Modo Local</span>
+                       )}
+                   </p>
                 </div>
              </div>
              <div className="flex items-center space-x-4">
+                 <a 
+                   href="https://console.firebase.google.com/u/0/project/azul-creative-ia/authentication/users" 
+                   target="_blank" 
+                   rel="noreferrer"
+                   className="hidden md:flex items-center space-x-2 text-[10px] text-textMuted hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
+                 >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Abrir Firebase Console</span>
+                 </a>
                  <div className="flex space-x-2">
                     <button onClick={() => setActiveTab('list')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'list' ? 'bg-primary text-white' : 'bg-white/5 text-textMuted hover:text-white'}`}>
                         Listar Usuários
@@ -319,6 +335,9 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
              {activeTab === 'create' && (
                  <div className="max-w-md mx-auto mt-10 p-8 bg-sidebar border border-border rounded-2xl shadow-lg">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center"><UserPlus className="w-5 h-5 mr-2 text-accent" /> Cadastrar Usuário</h3>
+                    <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-200">
+                        <p><strong>Nota de Segurança:</strong> Ao criar usuários manualmente aqui, eles serão salvos no banco de dados local ou Firestore, mas não criarão automaticamente credenciais de Auth se estiver usando o Firebase Client. Para criar acessos reais no Firebase, use a página de Registro ou o Console do Firebase.</p>
+                    </div>
                     <form onSubmit={handleCreateUser} className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Login</label>
@@ -903,6 +922,15 @@ export default function App() {
     setGeneratedImages([]);
   };
 
+  const handleTestConnection = async () => {
+    if (!isCloudConnected) {
+        alert("Modo Local: Seus dados estão sendo salvos apenas no seu navegador.");
+        return;
+    }
+    const result = await checkDatabaseConnection();
+    alert(result);
+  };
+
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={setCurrentUser} />;
   }
@@ -947,10 +975,14 @@ export default function App() {
                <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" /> <span>Limpar Tela</span>
              </button>
              
-             <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${isCloudConnected ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-surface border-white/5 text-textMuted'}`} title={isCloudConnected ? "Conectado ao Firebase" : "Modo Offline (LocalStorage)"}>
+             <button 
+                onClick={handleTestConnection}
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isCloudConnected ? 'bg-orange-500/10 border-orange-500/20 text-orange-400 hover:bg-orange-500/20' : 'bg-surface border-white/5 text-textMuted hover:bg-white/5'}`} 
+                title="Clique para testar a conexão com o banco de dados"
+             >
                 {isCloudConnected ? <Flame className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
                 <span className="text-[10px] font-bold tracking-widest">{isCloudConnected ? "FIREBASE ON" : "MODO LOCAL"}</span>
-             </div>
+             </button>
 
              <div className="flex items-center space-x-2 px-3 py-1.5 bg-surface/50 rounded-full border border-white/5">
                <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-yellow-500 animate-ping' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(16,185,129,0.5)]`}></div>

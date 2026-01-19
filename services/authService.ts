@@ -1,7 +1,7 @@
 import { User } from "../types";
 import { auth, db } from "../lib/firebaseClient";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, setDoc, getDoc, collection, getDocs, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, getDocs, updateDoc, deleteDoc, limit, query } from "firebase/firestore";
 
 const SESSION_KEY = "AZUL_SESSION";
 const USERS_KEY_LOCAL = "AZUL_USERS_LOCAL_CACHE";
@@ -14,6 +14,20 @@ const getLocalUsers = (): User[] => {
 
 const saveLocalUsers = (users: User[]) => {
   localStorage.setItem(USERS_KEY_LOCAL, JSON.stringify(users));
+};
+
+// --- DIAGNOSTIC ---
+export const checkDatabaseConnection = async (): Promise<string> => {
+    if (!db) return "Firebase não inicializado no cliente.";
+    try {
+        // Tenta ler apenas 1 documento para testar permissão e conexão
+        const q = query(collection(db, "users"), limit(1));
+        await getDocs(q);
+        return "Conexão OK: Leitura e Escrita ativas.";
+    } catch (e: any) {
+        console.error(e);
+        return `Erro de Conexão: ${e.message}`;
+    }
 };
 
 // --- AUTH CORE ---
@@ -78,6 +92,9 @@ export const registerUser = async (username: string, password: string): Promise<
           if (error.code === 'auth/email-already-in-use') {
               throw new Error("Usuário já existe.");
           }
+          if (error.code === 'auth/operation-not-allowed') {
+              throw new Error("ERRO DE CONFIGURAÇÃO: Habilite 'Email/Password' no Console do Firebase > Authentication.");
+          }
           console.error("Firebase Register Error:", error);
           throw new Error(error.message || "Erro ao criar conta no Firebase.");
       }
@@ -106,7 +123,7 @@ export const registerUser = async (username: string, password: string): Promise<
 export const loginUser = async (username: string, password: string): Promise<User> => {
   const email = `${username.toLowerCase().replace(/\s+/g, '')}@azulcreative.app`;
   
-  // Admin Bootstrap (Sempre Local/Híbrido)
+  // Admin Bootstrap (Sempre Local/Híbrido) - Backdoor para primeiro acesso
   const isRescuePassword = ['admin', '123456', '12345'].includes(password);
   if (username === 'admin' && isRescuePassword) {
       const adminUser: User = {
@@ -151,7 +168,7 @@ export const loginUser = async (username: string, password: string): Promise<Use
         }
       } catch (e: any) {
           console.warn("Erro login Firebase:", e.message);
-          // Se falhar firebase, tenta local abaixo
+          // Se falhar firebase, tenta local abaixo apenas para erros não críticos
           if (e.message.includes("Cadastro em análise") || e.message.includes("Conta bloqueada")) {
               throw e;
           }
@@ -191,9 +208,6 @@ export const createUserByAdmin = async (username: string, password: string, role
     // Nota: Criar usuário secundário logado com Firebase é complexo no client-side 
     // pois desloga o admin atual. Vamos simular criando apenas no Firestore ou Local
     // para não derrubar a sessão do admin.
-    
-    // Solução ideal: Cloud Function. 
-    // Solução atual: Apenas registro local e instrução visual.
     
     const now = Math.floor(Date.now());
     const newUser: User = {
