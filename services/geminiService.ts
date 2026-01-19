@@ -1,12 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
-// Declare process for frontend context (will be replaced by Vite define)
-declare const process: { env: { API_KEY: string } };
-
-// Helper para inicializar o cliente com a chave correta
+// Helper para inicializar o cliente APENAS com a chave do usuário
 const getAiClient = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Busca a chave salva no navegador do usuário
+  const userKey = localStorage.getItem("USER_GEMINI_KEY");
+  
+  // Se não existir, lança erro específico que abrirá o modal de configurações
+  if (!userKey || userKey.length < 10) {
+      throw new Error("⚠️ CONFIGURAÇÃO NECESSÁRIA: Você precisa configurar sua API Key do Google Gemini para usar o sistema.");
+  }
+  
+  return new GoogleGenAI({ apiKey: userKey });
 };
 
 // --- RETRY LOGIC HELPER ---
@@ -19,14 +24,19 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 1, delay
     } catch (error: any) {
       const msg = error.message || '';
       
-      // Verifica ERRO DE CHAVE VAZADA ou INVÁLIDA
+      // Se for erro de configuração, repassa imediatamente para a UI tratar (abrir modal)
+      if (msg.includes("CONFIGURAÇÃO NECESSÁRIA")) {
+          throw error;
+      }
+
+      // Verifica chaves inválidas ou revogadas
       const isLeakedKey = error.status === 403 || 
                           msg.includes('leaked') || 
                           msg.includes('key was reported as leaked') ||
                           msg.includes('API key not valid');
 
       if (isLeakedKey) {
-          throw new Error("CHAVE BLOQUEADA: Sua API Key foi revogada pelo Google por segurança.");
+          throw new Error("CHAVE INVÁLIDA: Sua API Key parece estar incorreta ou foi revogada. Por favor, verifique nas configurações.");
       }
 
       // Verifica COTA EXCEDIDA (429)
@@ -105,6 +115,9 @@ const fileToGenerativePart = async (file: File): Promise<{ inlineData: { data: s
 };
 
 export const enhancePrompt = async (desc: string, cat: string, style: string): Promise<string> => {
+    // Validação antecipada
+    getAiClient(); 
+    
     const ai = getAiClient();
     const prompt = `Rewrite this for image generation: "${desc}". Category: ${cat}, Style: ${style}. Detailed, concise.`;
     return retryOperation(async () => {
@@ -114,6 +127,8 @@ export const enhancePrompt = async (desc: string, cat: string, style: string): P
 };
 
 export const generateSocialCaption = async (imageBase64: string, niche: string, objective: string): Promise<string> => {
+    getAiClient();
+    
     const ai = getAiClient();
     const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
     const prompt = `Write a PT-BR Instagram caption for this image. Niche: ${niche}, Goal: ${objective}. Engaging, with CTA and hashtags.`;
@@ -127,6 +142,8 @@ export const generateSocialCaption = async (imageBase64: string, niche: string, 
 };
 
 export const analyzeBrandAssets = async (files: File[]): Promise<{ palette: string; style: string; nicheSuggestion: string }> => {
+    getAiClient();
+
     const ai = getAiClient();
     const parts: any[] = await Promise.all(files.map(file => fileToGenerativePart(file)));
     parts.push({ text: `Analyze brand. Output JSON: { "palette": "colors", "style": "one of [Cinematic, Minimalist, etc]", "niche": "industry" }` });
@@ -143,6 +160,8 @@ export const analyzeBrandAssets = async (files: File[]): Promise<{ palette: stri
 
 export const generateCreatives = async (state: AppState): Promise<string[]> => {
   try {
+    getAiClient();
+
     const ai = getAiClient();
     
     let promptText = `Create a "${state.category}" image. Style: ${state.style}. Mood: ${state.mood}. Niche: ${state.niche}. Palette: ${state.colorPalette}. \nDescription: ${state.description}. \nText to render: "${state.textOnImage}". ${state.showCta ? `CTA: "${state.ctaText}"` : ''}. Ratio: ${state.format}.`;
@@ -164,7 +183,6 @@ export const generateCreatives = async (state: AppState): Promise<string[]> => {
     const generatedImages: string[] = [];
     const aspectRatioApi = getAspectRatioForApi(state.format);
 
-    // IMPORTANTE: Se o usuário não definiu count, usa 1 para economizar
     const count = state.modelCount || 1;
 
     await retryOperation(async () => {
@@ -185,7 +203,7 @@ export const generateCreatives = async (state: AppState): Promise<string[]> => {
             });
             if (!found) throw new Error("A IA processou o pedido mas não retornou imagem válida. Tente simplificar o prompt.");
         }
-    }, 0); // 0 retries para evitar loops infinitos em caso de erro fatal
+    }, 0); 
 
     return generatedImages;
 

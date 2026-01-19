@@ -7,7 +7,8 @@ import { isFirebaseConfigured } from './lib/firebaseClient';
 import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
-// --- Login Screen Component ---
+// --- Components ---
+
 const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
@@ -41,7 +42,6 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Ambience */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[128px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[128px] pointer-events-none" />
 
@@ -120,13 +120,91 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
   );
 };
 
-// --- Admin Panel Component ---
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+    const [apiKey, setApiKey] = useState('');
+    const [savedKey, setSavedKey] = useState('');
+
+    useEffect(() => {
+        const stored = localStorage.getItem("USER_GEMINI_KEY");
+        if (stored) setSavedKey(stored);
+    }, []);
+
+    const handleSave = () => {
+        if (apiKey.trim().length > 0) {
+            localStorage.setItem("USER_GEMINI_KEY", apiKey.trim());
+            setSavedKey(apiKey.trim());
+            setApiKey('');
+            alert("Chave salva com sucesso!");
+        }
+    };
+
+    const handleClear = () => {
+        localStorage.removeItem("USER_GEMINI_KEY");
+        setSavedKey('');
+        alert("Chave removida. O sistema não funcionará sem uma chave.");
+    };
+
+    return (
+        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+            <div className="bg-surface border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
+                <div className="p-6 border-b border-border flex justify-between items-center bg-sidebar">
+                    <h2 className="text-lg font-bold text-white flex items-center">
+                        <Settings className="w-5 h-5 mr-2 text-primary" /> Configuração da IA
+                    </h2>
+                    <button onClick={onClose} className="text-textMuted hover:text-white"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="p-6 space-y-6">
+                    <div>
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg mb-4 flex items-start">
+                             <AlertCircle className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                             <p className="text-xs text-yellow-200">
+                                <strong>Chave API Obrigatória:</strong> Para gerar imagens, você precisa inserir sua própria chave do Google Gemini.
+                             </p>
+                        </div>
+
+                        <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Sua API Key (Gemini)</label>
+                        
+                        {savedKey ? (
+                            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center justify-between mb-4">
+                                <div className="flex items-center text-green-400 text-xs">
+                                    <Key className="w-4 h-4 mr-2" />
+                                    <span className="font-bold">Chave Configurada</span>
+                                </div>
+                                <button onClick={handleClear} className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase underline">Remover</button>
+                            </div>
+                        ) : (
+                             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center text-red-400 text-xs mb-4">
+                                <ShieldAlert className="w-4 h-4 mr-2" />
+                                <span className="font-bold">Nenhuma chave encontrada</span>
+                            </div>
+                        )}
+
+                        <div className="relative">
+                            <input 
+                                type="text" 
+                                value={apiKey} 
+                                onChange={(e) => setApiKey(e.target.value)} 
+                                placeholder="Cole sua chave aqui (AIzaSy...)" 
+                                className="w-full bg-background border border-border rounded-lg pl-4 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
+                            />
+                        </div>
+                    </div>
+                    <button onClick={handleSave} disabled={!apiKey} className="w-full bg-primary hover:bg-primaryHover disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg text-xs uppercase tracking-wider transition-colors">
+                        Salvar Chave
+                    </button>
+                    <div className="text-center pt-2">
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline">Clique aqui para obter uma chave gratuita no Google AI Studio ↗</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () => void }) => {
   const [usersList, setUsersList] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [loading, setLoading] = useState(false);
-  
-  // Create Form State
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<'user' | 'admin'>('user');
@@ -144,9 +222,7 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
       }
   };
 
-  useEffect(() => {
-      refreshList();
-  }, []);
+  useEffect(() => { refreshList(); }, []);
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este usuário?")) {
@@ -188,7 +264,6 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
        <div className="bg-surface border border-border w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-          {/* Header */}
           <div className="p-6 border-b border-border flex justify-between items-center bg-sidebar">
              <div className="flex items-center space-x-3">
                 <div className="p-2 bg-accent/10 rounded-lg">
@@ -214,7 +289,6 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
              </div>
           </div>
 
-          {/* Stats Bar */}
           {activeTab === 'list' && (
             <div className="px-6 py-4 bg-surface/50 border-b border-border grid grid-cols-3 gap-4">
                 <div className="bg-background/50 border border-white/5 p-3 rounded-lg flex items-center justify-between">
@@ -241,9 +315,7 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
             </div>
           )}
 
-          {/* Content */}
           <div className="flex-1 overflow-auto p-6 bg-surface/50">
-             
              {activeTab === 'create' && (
                  <div className="max-w-md mx-auto mt-10 p-8 bg-sidebar border border-border rounded-2xl shadow-lg">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center"><UserPlus className="w-5 h-5 mr-2 text-accent" /> Cadastrar Usuário</h3>
@@ -330,36 +402,17 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
                             </td>
                             <td className="p-4 text-right space-x-2">
                                 {u.status === 'pending' && (
-                                    <button 
-                                        onClick={() => handleApprove(u.id)}
-                                        className="inline-flex items-center px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold uppercase rounded transition-colors shadow-lg shadow-green-500/20"
-                                        title="Aprovar Usuário"
-                                    >
+                                    <button onClick={() => handleApprove(u.id)} className="inline-flex items-center px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold uppercase rounded transition-colors shadow-lg shadow-green-500/20">
                                         <Check className="w-3 h-3 mr-1" /> Aprovar
                                     </button>
                                 )}
-
-                                <button 
-                                onClick={() => handleBlock(u.id)}
-                                className={`p-1.5 rounded transition-colors ${u.status === 'blocked' ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'hover:bg-white/10 text-textMuted hover:text-white'}`}
-                                title={u.status === 'blocked' ? "Desbloquear" : "Bloquear"}
-                                >
+                                <button onClick={() => handleBlock(u.id)} className={`p-1.5 rounded transition-colors ${u.status === 'blocked' ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'hover:bg-white/10 text-textMuted hover:text-white'}`}>
                                 <Ban className="w-4 h-4" />
                                 </button>
-
-                                <button 
-                                onClick={() => handleRoleToggle(u.id)}
-                                className="p-1.5 hover:bg-white/10 rounded text-textMuted hover:text-white transition-colors"
-                                title={u.role === 'admin' ? "Rebaixar para Usuário" : "Promover a Admin"}
-                                >
+                                <button onClick={() => handleRoleToggle(u.id)} className="p-1.5 hover:bg-white/10 rounded text-textMuted hover:text-white transition-colors">
                                 <Shield className={`w-4 h-4 ${u.role === 'admin' ? 'text-accent' : 'text-gray-500'}`} />
                                 </button>
-                                
-                                <button 
-                                onClick={() => handleDelete(u.id)}
-                                className="p-1.5 hover:bg-red-500/20 rounded text-textMuted hover:text-red-400 transition-colors"
-                                title="Excluir Usuário"
-                                >
+                                <button onClick={() => handleDelete(u.id)} className="p-1.5 hover:bg-red-500/20 rounded text-textMuted hover:text-red-400 transition-colors">
                                 <Trash2 className="w-4 h-4" />
                                 </button>
                             </td>
@@ -374,7 +427,6 @@ const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () =
   );
 };
 
-// --- Sidebar Component (Modified) ---
 const SidebarPanel = ({ 
   state, 
   onChange, 
@@ -383,6 +435,7 @@ const SidebarPanel = ({
   currentUser,
   onLogout,
   onOpenAdmin,
+  onOpenSettings
 }: { 
   state: AppState; 
   onChange: (key: keyof AppState, value: any) => void;
@@ -391,12 +444,9 @@ const SidebarPanel = ({
   currentUser: User;
   onLogout: () => void;
   onOpenAdmin: () => void;
+  onOpenSettings: () => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
-
-  // Check if system key exists
-  const hasSystemKey = !!import.meta.env.VITE_GEMINI_API_KEY && import.meta.env.VITE_GEMINI_API_KEY.length > 0 && import.meta.env.VITE_GEMINI_API_KEY !== 'undefined';
-
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
   const isThumb = state.category === 'YouTube Thumbnail';
@@ -422,16 +472,22 @@ const SidebarPanel = ({
              if (fuzzyMatch) onChange('style', fuzzyMatch.value);
           }
           alert(`Análise Completa!\nEstilo Detectado: ${result.style}\nNicho Sugerido: ${result.nicheSuggestion}`);
-      } catch (error: any) { console.error(error); alert(error.message); } finally { setAnalyzing(false); }
+      } catch (error: any) { 
+          if(error.message.includes("CONFIGURAÇÃO NECESSÁRIA")) onOpenSettings();
+          else alert(error.message); 
+      } finally { setAnalyzing(false); }
   };
 
   return (
     <aside className="w-80 h-screen bg-sidebar border-r border-border overflow-y-auto fixed left-0 top-0 flex flex-col z-20">
-      <div className="p-6 border-b border-border bg-sidebar/50 backdrop-blur-sm sticky top-0 z-10">
-        <h2 className="text-xs font-bold text-accent uppercase tracking-widest mb-1 flex items-center">
+      <div className="p-6 border-b border-border bg-sidebar/50 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
+        <h2 className="text-xs font-bold text-accent uppercase tracking-widest flex items-center">
           <Layers className="w-3 h-3 mr-2" />
           Configuração Visual
         </h2>
+        <button onClick={onOpenSettings} className="p-1.5 text-textMuted hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors group" title="Configurações (API Key)">
+             <Settings className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" />
+        </button>
       </div>
 
       <div className="p-6 space-y-8 flex-1">
@@ -459,18 +515,6 @@ const SidebarPanel = ({
            </div>
         </div>
         
-        {!hasSystemKey && (
-          <div className="p-4 bg-red-500/10 rounded-xl border border-red-500/20 space-y-2">
-            <p className="text-[10px] text-red-300 font-bold flex items-center">
-                <AlertCircle className="w-3 h-3 mr-1.5" />
-                Erro de Configuração
-            </p>
-            <p className="text-[9px] text-red-300 opacity-80 leading-tight">
-                A variável de ambiente API_KEY não foi detectada. O sistema não funcionará sem ela.
-            </p>
-          </div>
-        )}
-
         <div className="w-full h-px bg-border/50"></div>
 
         {/* Batch */}
@@ -662,7 +706,8 @@ const SidebarPanel = ({
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [isCloudConnected, setIsCloudConnected] = useState(false); // NEW STATE
+  const [showSettings, setShowSettings] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
   
   // App Logic State
   const [loading, setLoading] = useState(false);
@@ -697,20 +742,16 @@ export default function App() {
         setCurrentUser(session);
       }
     } catch (e) {
-      // Se a sessão for inválida (ex: usuário bloqueado enquanto logado), logout.
       logoutUser();
     }
   }, []);
 
-  // --- PERSISTENCE (Data Service Integration) ---
+  // --- PERSISTENCE ---
   useEffect(() => {
-    // Verificar conexão com nuvem
     setIsCloudConnected(isFirebaseConfigured());
 
-    if (!currentUser) return; // Only load app state if logged in
+    if (!currentUser) return;
     
-    // Load Settings (Still local for user preferences)
-    // Key updated to AZUL_STATE
     const savedState = localStorage.getItem(`AZUL_STATE_${currentUser.id}`);
     if (savedState) {
         try {
@@ -719,7 +760,6 @@ export default function App() {
         } catch(e) { console.error("Error loading state", e) }
     }
     
-    // Load Gallery via Data Service (Supports Firebase or Local Fallback)
     const loadGallery = async () => {
         try {
             const items = await fetchCreatives(currentUser.id);
@@ -733,12 +773,8 @@ export default function App() {
   useEffect(() => {
      if (!currentUser) return;
      const stateToSave = { ...state, referenceImages: [], logoImage: null };
-     // Key updated to AZUL_STATE
      localStorage.setItem(`AZUL_STATE_${currentUser.id}`, JSON.stringify(stateToSave));
   }, [state, currentUser]);
-
-  // Gallery saving is now handled explicitly in handleGenerate, not via useEffect
-  // This prevents infinite loops or double saves when data comes from Firebase
 
   const handleStateChange = (key: keyof AppState, value: any) => {
     setState(prev => ({ ...prev, [key]: value }));
@@ -758,7 +794,6 @@ export default function App() {
   const handleDownload = (url: string, id: string) => {
     const link = document.createElement('a');
     link.href = url;
-    // Filename updated to azul-
     link.download = `azul-${state.category.replace(/\s+/g, '-').toLowerCase()}-${id}.jpg`;
     document.body.appendChild(link);
     link.click();
@@ -787,7 +822,16 @@ export default function App() {
     try {
         const enhanced = await enhancePrompt(state.description, state.category, state.style);
         handleStateChange('description', enhanced);
-    } catch (e) { console.error(e); setError("Erro ao melhorar prompt. Verifique se a API Key está configurada corretamente."); } finally { setMagicLoading(false); }
+    } catch (e: any) { 
+        console.error(e); 
+        // Se o erro for de configuração, abre o modal
+        if (e.message.includes("CONFIGURAÇÃO NECESSÁRIA")) {
+             setShowSettings(true);
+             setError("Por favor, configure sua chave de API para continuar.");
+        } else {
+             setError("Erro ao melhorar prompt. Verifique se a API Key está válida."); 
+        }
+    } finally { setMagicLoading(false); }
   };
 
   const handleGenerateCaption = async (creative: GeneratedCreative) => {
@@ -795,16 +839,15 @@ export default function App() {
      setCaptionLoading(creative.id);
      try {
          const caption = await generateSocialCaption(creative.url, creative.settings.niche, creative.settings.objective);
-         
-         // Atualiza estado local
          setGeneratedImages(prev => prev.map(img => img.id === creative.id ? { ...img, caption } : img));
-         
-         // Atualiza persistência (Firebase ou Local)
          if (currentUser) {
             updateCaptionInDb(creative.id, caption, currentUser.id);
          }
-
-     } catch (e) { console.error(e); alert("Erro ao gerar legenda."); } finally { setCaptionLoading(null); }
+     } catch (e: any) { 
+         console.error(e); 
+         if (e.message.includes("CONFIGURAÇÃO NECESSÁRIA")) setShowSettings(true);
+         else alert("Erro ao gerar legenda."); 
+     } finally { setCaptionLoading(null); }
   };
 
   const copyToClipboard = (text: string) => { navigator.clipboard.writeText(text); alert("Copiado!"); };
@@ -834,39 +877,45 @@ export default function App() {
         settings: currentSettings
       }));
 
-      // Update UI (Optimistic)
       setGeneratedImages(prev => [...newCreatives, ...prev]);
 
-      // Persist (Save to DB/Local)
       if (currentUser) {
           for (const creative of newCreatives) {
               await saveCreative(currentUser.id, creative);
           }
-          // Reload to ensure sync with DB limits (e.g., if items were deleted)
           const syncedItems = await fetchCreatives(currentUser.id);
           setGeneratedImages(syncedItems);
       }
 
-    } catch (err: any) { setError(err.message || "Erro desconhecido na síntese visual."); } finally { setLoading(false); }
+    } catch (err: any) { 
+        if (err.message.includes("CONFIGURAÇÃO NECESSÁRIA")) {
+            setShowSettings(true);
+            setError("Chave de API necessária para gerar imagens.");
+        } else {
+            setError(err.message || "Erro desconhecido na síntese visual."); 
+        }
+    } finally { setLoading(false); }
   };
 
   const handleLogout = () => {
     logoutUser();
     setCurrentUser(null);
-    setGeneratedImages([]); // Clear view
+    setGeneratedImages([]);
   };
 
-  // --- RENDER ---
-  
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={setCurrentUser} />;
   }
 
   return (
     <div className="flex min-h-screen bg-background text-textMain selection:bg-primary selection:text-white font-sans">
-      {/* Admin Panel Overlay */}
+      {/* Modals */}
       {showAdminPanel && currentUser.role === 'admin' && (
         <AdminPanel currentUser={currentUser} onClose={() => setShowAdminPanel(false)} />
+      )}
+      
+      {showSettings && (
+          <SettingsModal onClose={() => setShowSettings(false)} />
       )}
 
       {/* Sidebar */}
@@ -878,6 +927,7 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdmin={() => setShowAdminPanel(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Main Content */}
@@ -897,7 +947,6 @@ export default function App() {
                <RotateCcw className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" /> <span>Limpar Tela</span>
              </button>
              
-             {/* Cloud Status Indicator */}
              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${isCloudConnected ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-surface border-white/5 text-textMuted'}`} title={isCloudConnected ? "Conectado ao Firebase" : "Modo Offline (LocalStorage)"}>
                 {isCloudConnected ? <Flame className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
                 <span className="text-[10px] font-bold tracking-widest">{isCloudConnected ? "FIREBASE ON" : "MODO LOCAL"}</span>
