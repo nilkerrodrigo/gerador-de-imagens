@@ -1,6 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 
 // Configuração EXPLÍCITA para garantir a conexão
 export const firebaseConfig = {
@@ -12,15 +12,15 @@ export const firebaseConfig = {
   appId: "1:343989049175:web:411f464ea7a61390325012"
 };
 
-// Verifica se as chaves críticas existem (agora sempre existirão)
+// Verifica se as chaves críticas existem
 const isConfigured = 
     firebaseConfig.apiKey && 
     firebaseConfig.authDomain && 
     firebaseConfig.projectId;
 
-let app = null;
-let auth = null;
-let db = null;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
 
 if (isConfigured) {
     try {

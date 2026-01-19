@@ -29,7 +29,8 @@ const getLocal = (userId: string): GeneratedCreative[] => {
 // --- FIRESTORE OPERATIONS ---
 
 export const saveCreative = async (userId: string, creative: GeneratedCreative): Promise<GeneratedCreative[]> => {
-    if (!db) {
+    const _db = db;
+    if (!_db) {
         return saveLocal(userId, creative);
     }
 
@@ -46,13 +47,13 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
         };
 
         // Salvar no Firestore
-        await addDoc(collection(db, COLLECTION_NAME), docData);
+        await addDoc(collection(_db, COLLECTION_NAME), docData);
 
         // Limpeza automática (Manter apenas os últimos MAX_ITEMS)
         // Nota: Firestore não tem "capped collections" nativas simples, 
         // então buscamos todos e deletamos os excedentes.
         const q = query(
-            collection(db, COLLECTION_NAME), 
+            collection(_db, COLLECTION_NAME), 
             where("user_id", "==", userId),
             orderBy("created_at", "desc")
         );
@@ -61,7 +62,7 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
         if (snapshot.size > MAX_ITEMS_PER_USER) {
             const docsToDelete = snapshot.docs.slice(MAX_ITEMS_PER_USER);
             for (const d of docsToDelete) {
-                await deleteDoc(doc(db, COLLECTION_NAME, d.id));
+                await deleteDoc(doc(_db, COLLECTION_NAME, d.id));
             }
         }
 
@@ -78,13 +79,14 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
 };
 
 export const fetchCreatives = async (userId: string): Promise<GeneratedCreative[]> => {
-    if (!db) {
+    const _db = db;
+    if (!_db) {
         return getLocal(userId);
     }
 
     try {
         const q = query(
-            collection(db, COLLECTION_NAME),
+            collection(_db, COLLECTION_NAME),
             where("user_id", "==", userId),
             orderBy("created_at", "desc"),
             limit(MAX_ITEMS_PER_USER)
@@ -123,13 +125,14 @@ export const updateCaptionInDb = async (creativeId: string, caption: string, use
      const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
      localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
 
-     if (!db) return;
+     const _db = db;
+     if (!_db) return;
 
      try {
          // Firestore update requires the doc ID. 
          // Se o creativeId for um ID do Firestore, funciona direto.
          // Se for local (gerado com Math.random), vai falhar, e tudo bem (fica só local).
-         const creativeRef = doc(db, COLLECTION_NAME, creativeId);
+         const creativeRef = doc(_db, COLLECTION_NAME, creativeId);
          await updateDoc(creativeRef, { caption: caption });
      } catch (e) {
          // Silencioso

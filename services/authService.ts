@@ -22,14 +22,15 @@ const saveLocalUsers = (users: User[]) => {
 // Garante que o Firebase Auth terminou de carregar a sessão do IndexedDB antes de tentar ler o banco
 const waitForAuth = (): Promise<void> => {
     return new Promise((resolve) => {
+        const _auth = auth;
         // Se não tem auth configurado ou já tem usuário carregado, libera
-        if (!auth) return resolve();
-        if (auth.currentUser) return resolve();
+        if (!_auth) return resolve();
+        if (_auth.currentUser) return resolve();
 
         // Timeout de segurança para não travar o app se a internet cair
         const safetyTimeout = setTimeout(() => resolve(), 2500);
 
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(_auth, (user) => {
             clearTimeout(safetyTimeout);
             unsubscribe();
             resolve();
@@ -39,17 +40,31 @@ const waitForAuth = (): Promise<void> => {
 
 // --- DIAGNOSTIC ---
 export const checkDatabaseConnection = async (): Promise<string> => {
-    if (!db) return "Firebase não inicializado no cliente.";
+    const _db = db;
+    const _auth = auth;
+    
+    if (!_db) return "Firebase não inicializado no cliente.";
     
     // Aguarda autenticação antes de testar permissão
     await waitForAuth();
 
     try {
-        const q = query(collection(db, "users"), limit(1));
+        const q = query(collection(_db, "users"), limit(1));
         await getDocs(q);
         return "Conexão OK: Leitura e Escrita ativas.";
     } catch (e: any) {
-        if (e.code === 'permission-denied') return "⚠️ ALERTA: Sem permissão de leitura global. O Admin pode estar restrito.";
+        if (e.code === 'permission-denied') {
+            // Tenta verificar se tem acesso pelo menos ao próprio perfil
+            // Se conseguir ler o próprio doc, o banco está conectado e as regras estão apenas estritas (o que é bom)
+            if (_auth?.currentUser) {
+                try {
+                    await getDoc(doc(_db, "users", _auth.currentUser.uid));
+                    // Retorna status informativo sem a flag "ALERTA" para não assustar o usuário
+                    return "Conexão Ativa: Modo de acesso restrito (Regras de Segurança).";
+                } catch (inner) {}
+            }
+            return "⚠️ ALERTA: Sem permissão de leitura global. Verifique as Regras no Console.";
+        }
         return `Status Conexão: ${e.code || e.message}`;
     }
 };
@@ -58,11 +73,12 @@ export const checkDatabaseConnection = async (): Promise<string> => {
 
 export const getUsers = async (): Promise<User[]> => {
   let firestoreUsers: User[] = [];
-  
-  if (db) {
+  const _db = db;
+
+  if (_db) {
       await waitForAuth(); 
       try {
-        const querySnapshot = await getDocs(collection(db, "users"));
+        const querySnapshot = await getDocs(collection(_db, "users"));
         querySnapshot.forEach((doc) => {
             const data = doc.data();
             firestoreUsers.push({
@@ -106,6 +122,8 @@ export const getUsers = async (): Promise<User[]> => {
 
 export const registerUser = async (username: string, password: string): Promise<User> => {
   const now = Math.floor(Date.now());
+  const _auth = auth;
+  const _db = db;
   
   const isEmail = username.includes('@');
   const email = isEmail 
@@ -114,10 +132,10 @@ export const registerUser = async (username: string, password: string): Promise<
 
   const displayUsername = isEmail ? username.split('@')[0] : username;
 
-  if (auth && db) {
+  if (_auth && _db) {
       try {
           // 1. Auth Create
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const userCredential = await createUserWithEmailAndPassword(_auth, email, password);
           const uid = userCredential.user.uid;
 
           const newUser: User = {
@@ -131,7 +149,7 @@ export const registerUser = async (username: string, password: string): Promise<
 
           // 2. Firestore Write (BLINDADO)
           try {
-              await setDoc(doc(db, "users", uid), {
+              await setDoc(doc(_db, "users", uid), {
                   username: newUser.username,
                   role: newUser.role,
                   status: newUser.status,
@@ -186,6 +204,9 @@ export const registerUser = async (username: string, password: string): Promise<
 };
 
 export const loginUser = async (username: string, password: string): Promise<User> => {
+  const _auth = auth;
+  const _db = db;
+
   const isEmail = username.includes('@');
   const email = isEmail 
     ? username.trim().toLowerCase() 
@@ -205,14 +226,14 @@ export const loginUser = async (username: string, password: string): Promise<Use
       return adminUser;
   }
 
-  if (auth && db) {
+  if (_auth && _db) {
       try {
         // O signIn já resolve a sessão, não precisa de waitForAuth aqui
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(_auth, email, password);
         const uid = userCredential.user.uid;
 
         let user: User | null = null;
-        const docRef = doc(db, "users", uid);
+        const docRef = doc(_db, "users", uid);
 
         try {
             const docSnap = await getDoc(docRef);
@@ -286,7 +307,8 @@ export const loginUser = async (username: string, password: string): Promise<Use
 };
 
 export const logoutUser = async () => {
-  if (auth) { try { await signOut(auth); } catch(e) {} }
+  const _auth = auth;
+  if (_auth) { try { await signOut(_auth); } catch(e) {} }
   localStorage.removeItem(SESSION_KEY);
 };
 
@@ -308,9 +330,12 @@ export const createUserByAdmin = async (username: string, password: string, role
   
     const displayUsername = isEmail ? username.split('@')[0] : username;
 
+    const _auth = auth;
+    const _db = db;
+
     // Se Firebase estiver configurado, tentamos criar REALMENTE no Authentication
     // TRUQUE: Usamos uma "App Secundária" para não deslogar o admin atual
-    if (firebaseConfig && auth && db) {
+    if (firebaseConfig && _auth && _db) {
         console.log("Admin: Criando usuário via App Secundária...");
         let secondaryApp = null;
         try {
@@ -394,13 +419,15 @@ export const createUserByAdmin = async (username: string, password: string, role
 };
 
 export const deleteUser = async (userId: string) => {
-  if (db) { try { await waitForAuth(); await deleteDoc(doc(db, "users", userId)); } catch(e) {} }
+  const _db = db;
+  if (_db) { try { await waitForAuth(); await deleteDoc(doc(_db, "users", userId)); } catch(e) {} }
   let users = getLocalUsers();
   users = users.filter((u) => u.id !== userId);
   saveLocalUsers(users);
 };
 
 export const toggleUserRole = async (userId: string) => {
+  const _db = db;
   const localUsers = getLocalUsers();
   const index = localUsers.findIndex(u => u.id === userId);
   let newRole: 'admin' | 'user' = 'user';
@@ -409,17 +436,19 @@ export const toggleUserRole = async (userId: string) => {
       localUsers[index].role = newRole;
       saveLocalUsers(localUsers);
   }
-  if (db) { try { await waitForAuth(); await updateDoc(doc(db, "users", userId), { role: newRole }); } catch(e) {} }
+  if (_db) { try { await waitForAuth(); await updateDoc(doc(_db, "users", userId), { role: newRole }); } catch(e) {} }
 };
 
 export const approveUser = async (userId: string) => {
+    const _db = db;
     const localUsers = getLocalUsers();
     const index = localUsers.findIndex(u => u.id === userId);
     if (index !== -1) { localUsers[index].status = 'active'; saveLocalUsers(localUsers); }
-    if (db) { try { await waitForAuth(); await updateDoc(doc(db, "users", userId), { status: 'active' }); } catch(e) {} }
+    if (_db) { try { await waitForAuth(); await updateDoc(doc(_db, "users", userId), { status: 'active' }); } catch(e) {} }
 };
 
 export const blockUser = async (userId: string) => {
+    const _db = db;
     const localUsers = getLocalUsers();
     const index = localUsers.findIndex(u => u.id === userId);
     let newStatus: 'active' | 'blocked' = 'blocked';
@@ -428,5 +457,5 @@ export const blockUser = async (userId: string) => {
         localUsers[index].status = newStatus; 
         saveLocalUsers(localUsers); 
     }
-    if (db) { try { await waitForAuth(); await updateDoc(doc(db, "users", userId), { status: newStatus }); } catch(e) {} }
+    if (_db) { try { await waitForAuth(); await updateDoc(doc(_db, "users", userId), { status: newStatus }); } catch(e) {} }
 };
