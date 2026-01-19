@@ -9,6 +9,77 @@ import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS 
 
 // --- Components ---
 
+const SettingsModal = ({ onClose }: { onClose: () => void }) => {
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('AZUL_GEMINI_KEY');
+    if (stored) setApiKey(stored);
+  }, []);
+
+  const handleSave = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem('AZUL_GEMINI_KEY', apiKey.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      localStorage.removeItem('AZUL_GEMINI_KEY');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+       <div className="bg-surface border border-border w-full max-w-lg rounded-2xl shadow-2xl p-8 relative">
+          <button onClick={onClose} className="absolute top-4 right-4 text-textMuted hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-primary/20 rounded-lg text-primary">
+              <Settings className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Configurações</h2>
+              <p className="text-xs text-textMuted">Gerencie sua conexão com a IA</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+             <div>
+                <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Gemini API Key</label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textMuted" />
+                  <input 
+                    type={showKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => { setApiKey(e.target.value); setSaved(false); }}
+                    className="w-full bg-background border border-border rounded-lg pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-primary transition-colors font-mono"
+                    placeholder="Cole sua chave AIza..."
+                  />
+                  <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-textMuted hover:text-white">
+                     {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] text-textMuted">
+                  Sua chave será salva localmente no seu navegador. Ninguém mais tem acesso.
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-primary hover:underline ml-1">Gerar chave aqui.</a>
+                </p>
+             </div>
+
+             <button 
+                onClick={handleSave} 
+                className={`w-full py-3 rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center ${saved ? 'bg-green-500 text-white' : 'bg-primary hover:bg-primaryHover text-white'}`}
+             >
+                {saved ? <><Check className="w-4 h-4 mr-2" /> Salvo com Sucesso</> : 'Salvar Alterações'}
+             </button>
+          </div>
+       </div>
+    </div>
+  );
+};
+
 const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
@@ -414,7 +485,8 @@ const SidebarPanel = ({
   onLogoChange,
   currentUser,
   onLogout,
-  onOpenAdmin
+  onOpenAdmin,
+  onOpenSettings
 }: { 
   state: AppState; 
   onChange: (key: keyof AppState, value: any) => void;
@@ -423,6 +495,7 @@ const SidebarPanel = ({
   currentUser: User;
   onLogout: () => void;
   onOpenAdmin: () => void;
+  onOpenSettings: () => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const isAd = state.category === 'Ad Creative';
@@ -462,6 +535,9 @@ const SidebarPanel = ({
           <Layers className="w-3 h-3 mr-2" />
           Configuração Visual
         </h2>
+        <button onClick={onOpenSettings} className="p-1.5 text-textMuted hover:text-white rounded hover:bg-white/5 transition-colors" title="Configurações (API Key)">
+           <Settings className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="p-6 space-y-8 flex-1">
@@ -680,6 +756,7 @@ const SidebarPanel = ({
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showSettings, setShowSettings] = useState(false); // NOVO
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   
   // App Logic State
@@ -797,7 +874,7 @@ export default function App() {
         handleStateChange('description', enhanced);
     } catch (e: any) { 
         console.error(e); 
-        setError("Erro ao melhorar prompt. Verifique se a API Key está válida no ambiente."); 
+        setError("Erro ao melhorar prompt. Verifique suas Configurações de API Key."); 
     } finally { setMagicLoading(false); }
   };
 
@@ -884,6 +961,10 @@ export default function App() {
         <AdminPanel currentUser={currentUser} onClose={() => setShowAdminPanel(false)} />
       )}
       
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+      
       {/* Sidebar */}
       <SidebarPanel 
         state={state} 
@@ -893,6 +974,7 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdmin={() => setShowAdminPanel(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Main Content */}

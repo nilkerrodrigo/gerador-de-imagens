@@ -1,11 +1,24 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
-// Helper para inicializar o cliente APENAS com a chave do ambiente (process.env.API_KEY)
+const STORAGE_KEY_API = "AZUL_GEMINI_KEY";
+
+// Helper para inicializar o cliente
 const getAiClient = () => {
-  // As per guidelines, API Key must come from process.env.API_KEY
-  // Do not ask user for key.
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // 1. Tenta pegar a chave salva pelo usuário no navegador
+  const localKey = localStorage.getItem(STORAGE_KEY_API);
+  
+  // 2. Se não tiver, tenta a do ambiente (fallback)
+  // O compilador pode reclamar do process.env em alguns setups Vite, mas o define no config resolve
+  const envKey = process.env.API_KEY; 
+
+  const finalKey = localKey || envKey;
+
+  if (!finalKey) {
+      throw new Error("Chave API não configurada. Clique em 'Configurações' (⚙️) e insira sua chave do Google Gemini.");
+  }
+
+  return new GoogleGenAI({ apiKey: finalKey });
 };
 
 // --- RETRY LOGIC HELPER ---
@@ -22,10 +35,11 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 1, delay
       const isLeakedKey = error.status === 403 || 
                           msg.includes('leaked') || 
                           msg.includes('key was reported as leaked') ||
-                          msg.includes('API key not valid');
+                          msg.includes('API key not valid') ||
+                          msg.includes('API_KEY_INVALID');
 
       if (isLeakedKey) {
-          throw new Error("CHAVE INVÁLIDA: A API Key configurada no ambiente parece estar incorreta ou foi revogada.");
+          throw new Error("CHAVE INVÁLIDA: A API Key configurada está incorreta ou expirou. Verifique nas Configurações.");
       }
 
       // Verifica COTA EXCEDIDA (429)
@@ -36,7 +50,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 1, delay
       
       if (isQuotaError) {
          if (i === retries) {
-             throw new Error("LIMITE GRATUITO ATINGIDO (429): O Google pausou suas gerações temporariamente. Solução: Aguarde alguns minutos.");
+             throw new Error("LIMITE GRATUITO ATINGIDO (429): O Google pausou suas gerações temporariamente. Aguarde alguns minutos.");
          }
          console.warn(`Cota atingida (429). Tentando novamente em ${delayMs}ms...`);
          await wait(delayMs);
