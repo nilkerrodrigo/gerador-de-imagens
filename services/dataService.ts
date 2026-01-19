@@ -7,26 +7,65 @@ const COLLECTION_NAME = "creatives";
 
 const getLocalKey = (userId: string) => `AZUL_GALLERY_${userId}`;
 
-// --- LOCAL STORAGE FALLBACK ---
+// --- LOCAL STORAGE FALLBACK INTELIGENTE ---
 const saveLocal = (userId: string, creative: GeneratedCreative) => {
     const key = getLocalKey(userId);
-    const stored = localStorage.getItem(key);
+    let stored = null;
+    try {
+        stored = localStorage.getItem(key);
+    } catch (e) { console.error("Erro ao ler localStorage", e); }
+    
     let items: GeneratedCreative[] = stored ? JSON.parse(stored) : [];
     
     // Remove duplicatas por ID se houver
     items = items.filter(i => i.id !== creative.id);
     
+    // Adiciona a nova no topo
     items = [creative, ...items];
+
+    // Garante o limite máximo inicial
     if (items.length > MAX_ITEMS_PER_USER) {
         items = items.slice(0, MAX_ITEMS_PER_USER);
     }
-    localStorage.setItem(key, JSON.stringify(items));
+
+    // Tenta salvar. Se der erro de cota, remove a última e tenta de novo.
+    while (items.length > 0) {
+        try {
+            localStorage.setItem(key, JSON.stringify(items));
+            break; // Sucesso, sai do loop
+        } catch (e: any) {
+            // Verifica se é erro de cota (espaço cheio)
+            if (
+                e.name === 'QuotaExceededError' || 
+                e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+                e.code === 22 || 
+                e.message?.toLowerCase().includes('quota') ||
+                e.message?.toLowerCase().includes('exceeded')
+            ) {
+                if (items.length === 1) {
+                    // Se nem 1 imagem cabe, desiste para não travar o loop
+                    console.warn("Armazenamento local crítico: Não há espaço nem para a imagem atual.");
+                    break;
+                }
+                // Remove a imagem mais antiga (última do array) e tenta salvar novamente
+                items.pop();
+            } else {
+                // Se for outro erro, lança
+                throw e;
+            }
+        }
+    }
+    
     return items;
 };
 
 const getLocal = (userId: string): GeneratedCreative[] => {
-    const stored = localStorage.getItem(getLocalKey(userId));
-    return stored ? JSON.parse(stored) : [];
+    try {
+        const stored = localStorage.getItem(getLocalKey(userId));
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        return [];
+    }
 };
 
 // --- FIRESTORE OPERATIONS ---
@@ -50,10 +89,9 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
         };
 
         // Salvar no Firestore
-        // Nota: creative.id local é sobrescrito pelo ID do Firestore, mas mantemos referência se precisar
         await addDoc(collection(_db, COLLECTION_NAME), docData);
 
-        // Limpeza automática (Manter apenas os últimos MAX_ITEMS)
+        // Limpeza automática (Manter apenas os últimos MAX_ITEMS na nuvem)
         const q = query(
             collection(_db, COLLECTION_NAME), 
             where("user_id", "==", userId),
@@ -72,6 +110,7 @@ export const saveCreative = async (userId: string, creative: GeneratedCreative):
 
     } catch (error: any) {
         // Se der erro (ex: imagem muito grande para documento > 1MB ou permissão), salva localmente
+        // Ignora erro de cota ou tamanho excessivo na nuvem para não quebrar a UX
         if (error.code === 'resource-exhausted' || error.message.includes('size')) {
             console.warn("Imagem muito grande para a nuvem. Salvando apenas localmente.");
         }
@@ -124,14 +163,15 @@ export const updateCaptionInDb = async (creativeId: string, caption: string, use
      // Update Local
      const items = getLocal(userId);
      const updated = items.map(i => i.id === creativeId ? { ...i, caption } : i);
-     localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
+     try {
+        localStorage.setItem(getLocalKey(userId), JSON.stringify(updated));
+     } catch(e) { console.error("Falha ao atualizar caption local", e); }
 
      const _db = db;
      if (!_db) return;
 
      try {
          // Firestore update
-         // Tenta atualizar assumindo que creativeId é um ID válido do Doc
          const creativeRef = doc(_db, COLLECTION_NAME, creativeId);
          await updateDoc(creativeRef, { caption: caption });
      } catch (e) {
@@ -143,7 +183,9 @@ export const deleteCreative = async (userId: string, creativeId: string): Promis
     // 1. Deletar Localmente
     const localItems = getLocal(userId);
     const newLocalItems = localItems.filter(i => i.id !== creativeId);
-    localStorage.setItem(getLocalKey(userId), JSON.stringify(newLocalItems));
+    try {
+        localStorage.setItem(getLocalKey(userId), JSON.stringify(newLocalItems));
+    } catch(e) {}
 
     const _db = db;
     if (!_db) return newLocalItems;

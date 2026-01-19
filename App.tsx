@@ -628,10 +628,15 @@ const SidebarPanel = ({
               <span className="flex items-center"><UploadCloud className="w-3 h-3 mr-2 text-accent" /> Inserir Logo (Opcional)</span>
             </label>
             {!state.logoImage ? (
-                <label className="block w-full text-center py-4 cursor-pointer hover:bg-white/5 rounded transition-colors">
-                    <span className="text-xs text-textMuted">Clique para enviar PNG/JPG</span>
-                    <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => { if(e.target.files) { onLogoChange(e.target.files[0]); e.target.value = ''; } }} />
-                </label>
+                <div className="relative block w-full text-center py-4 cursor-pointer hover:bg-white/5 rounded transition-colors group">
+                    <span className="text-xs text-textMuted group-hover:text-white transition-colors">Clique para enviar PNG/JPG</span>
+                    <input 
+                       type="file" 
+                       accept="image/png,image/jpeg" 
+                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                       onChange={(e) => { if(e.target.files && e.target.files.length > 0) { onLogoChange(e.target.files[0]); e.target.value = ''; } }} 
+                    />
+                </div>
             ) : (
                 <div className="flex items-center justify-between bg-surface p-2 rounded-lg mt-2 border border-white/10">
                     <div className="flex items-center space-x-2 overflow-hidden">
@@ -1046,13 +1051,20 @@ export default function App() {
                  </div>
                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     <div className="flex-shrink-0">
-                      <label className="w-28 h-28 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all group/upload relative overflow-hidden">
-                          <div className="p-2 rounded-full bg-surface mb-2 group-hover/upload:scale-110 transition-transform">
+                      <div className="relative w-28 h-28 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center hover:border-primary hover:bg-primary/5 transition-all group/upload overflow-hidden">
+                          <div className="p-2 rounded-full bg-surface mb-2 group-hover/upload:scale-110 transition-transform pointer-events-none">
                              <Sparkles className="w-4 h-4 text-textMuted group-hover/upload:text-primary" />
                           </div>
-                          <span className="text-[10px] text-textMuted font-medium group-hover/upload:text-primary transition-colors">Adicionar Imagem</span>
-                          <input type="file" className="hidden" multiple accept="image/*" onChange={handleFileChange} />
-                      </label>
+                          <span className="text-[10px] text-textMuted font-medium group-hover/upload:text-primary transition-colors pointer-events-none">Adicionar Imagem</span>
+                          <input 
+                             type="file" 
+                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                             multiple 
+                             accept="image/*" 
+                             onChange={handleFileChange} 
+                             title="Clique para adicionar imagens de referência"
+                          />
+                      </div>
                     </div>
                     {state.referenceImages.map((file, idx) => (
                       <div key={idx} className="relative group/img w-28 h-28 flex-shrink-0">
