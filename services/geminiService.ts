@@ -1,17 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState } from "../types";
 
-// Helper para inicializar o cliente APENAS com a chave do usuário
+// Helper para inicializar o cliente APENAS com a chave do ambiente (process.env.API_KEY)
 const getAiClient = () => {
-  // Busca a chave salva no navegador do usuário
-  const userKey = localStorage.getItem("USER_GEMINI_KEY");
-  
-  // Se não existir, lança erro específico que abrirá o modal de configurações
-  if (!userKey || userKey.length < 10) {
-      throw new Error("⚠️ CONFIGURAÇÃO NECESSÁRIA: Você precisa configurar sua API Key do Google Gemini para usar o sistema.");
-  }
-  
-  return new GoogleGenAI({ apiKey: userKey });
+  // As per guidelines, API Key must come from process.env.API_KEY
+  // Do not ask user for key.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // --- RETRY LOGIC HELPER ---
@@ -24,11 +18,6 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 1, delay
     } catch (error: any) {
       const msg = error.message || '';
       
-      // Se for erro de configuração, repassa imediatamente para a UI tratar (abrir modal)
-      if (msg.includes("CONFIGURAÇÃO NECESSÁRIA")) {
-          throw error;
-      }
-
       // Verifica chaves inválidas ou revogadas
       const isLeakedKey = error.status === 403 || 
                           msg.includes('leaked') || 
@@ -36,7 +25,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 1, delay
                           msg.includes('API key not valid');
 
       if (isLeakedKey) {
-          throw new Error("CHAVE INVÁLIDA: Sua API Key parece estar incorreta ou foi revogada. Por favor, verifique nas configurações.");
+          throw new Error("CHAVE INVÁLIDA: A API Key configurada no ambiente parece estar incorreta ou foi revogada.");
       }
 
       // Verifica COTA EXCEDIDA (429)

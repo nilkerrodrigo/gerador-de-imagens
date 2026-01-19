@@ -143,88 +143,6 @@ const LoginScreen = ({ onLoginSuccess }: { onLoginSuccess: (user: User) => void 
   );
 };
 
-// ... SettingsModal mantido igual ...
-const SettingsModal = ({ onClose }: { onClose: () => void }) => {
-    const [apiKey, setApiKey] = useState('');
-    const [savedKey, setSavedKey] = useState('');
-
-    useEffect(() => {
-        const stored = localStorage.getItem("USER_GEMINI_KEY");
-        if (stored) setSavedKey(stored);
-    }, []);
-
-    const handleSave = () => {
-        if (apiKey.trim().length > 0) {
-            localStorage.setItem("USER_GEMINI_KEY", apiKey.trim());
-            setSavedKey(apiKey.trim());
-            setApiKey('');
-            alert("Chave salva com sucesso!");
-        }
-    };
-
-    const handleClear = () => {
-        localStorage.removeItem("USER_GEMINI_KEY");
-        setSavedKey('');
-        alert("Chave removida. O sistema não funcionará sem uma chave.");
-    };
-
-    return (
-        <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-            <div className="bg-surface border border-border w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
-                <div className="p-6 border-b border-border flex justify-between items-center bg-sidebar">
-                    <h2 className="text-lg font-bold text-white flex items-center">
-                        <Settings className="w-5 h-5 mr-2 text-primary" /> Configuração da IA
-                    </h2>
-                    <button onClick={onClose} className="text-textMuted hover:text-white"><X className="w-5 h-5" /></button>
-                </div>
-                <div className="p-6 space-y-6">
-                    <div>
-                        <div className="bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg mb-4 flex items-start">
-                             <AlertCircle className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-                             <p className="text-xs text-yellow-200">
-                                <strong>Chave API Obrigatória:</strong> Para gerar imagens, você precisa inserir sua própria chave do Google Gemini.
-                             </p>
-                        </div>
-
-                        <label className="block text-xs font-bold text-textMuted uppercase tracking-wider mb-2">Sua API Key (Gemini)</label>
-                        
-                        {savedKey ? (
-                            <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center justify-between mb-4">
-                                <div className="flex items-center text-green-400 text-xs">
-                                    <Key className="w-4 h-4 mr-2" />
-                                    <span className="font-bold">Chave Configurada</span>
-                                </div>
-                                <button onClick={handleClear} className="text-[10px] text-red-400 hover:text-red-300 font-bold uppercase underline">Remover</button>
-                            </div>
-                        ) : (
-                             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center text-red-400 text-xs mb-4">
-                                <ShieldAlert className="w-4 h-4 mr-2" />
-                                <span className="font-bold">Nenhuma chave encontrada</span>
-                            </div>
-                        )}
-
-                        <div className="relative">
-                            <input 
-                                type="text" 
-                                value={apiKey} 
-                                onChange={(e) => setApiKey(e.target.value)} 
-                                placeholder="Cole sua chave aqui (AIzaSy...)" 
-                                className="w-full bg-background border border-border rounded-lg pl-4 pr-4 py-3 text-sm text-white focus:outline-none focus:border-primary"
-                            />
-                        </div>
-                    </div>
-                    <button onClick={handleSave} disabled={!apiKey} className="w-full bg-primary hover:bg-primaryHover disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg text-xs uppercase tracking-wider transition-colors">
-                        Salvar Chave
-                    </button>
-                    <div className="text-center pt-2">
-                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline">Clique aqui para obter uma chave gratuita no Google AI Studio ↗</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const AdminPanel = ({ currentUser, onClose }: { currentUser: User; onClose: () => void }) => {
   const [usersList, setUsersList] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -496,8 +414,7 @@ const SidebarPanel = ({
   onLogoChange,
   currentUser,
   onLogout,
-  onOpenAdmin,
-  onOpenSettings
+  onOpenAdmin
 }: { 
   state: AppState; 
   onChange: (key: keyof AppState, value: any) => void;
@@ -506,7 +423,6 @@ const SidebarPanel = ({
   currentUser: User;
   onLogout: () => void;
   onOpenAdmin: () => void;
-  onOpenSettings: () => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const isAd = state.category === 'Ad Creative';
@@ -535,8 +451,7 @@ const SidebarPanel = ({
           }
           alert(`Análise Completa!\nEstilo Detectado: ${result.style}\nNicho Sugerido: ${result.nicheSuggestion}`);
       } catch (error: any) { 
-          if(error.message.includes("CONFIGURAÇÃO NECESSÁRIA")) onOpenSettings();
-          else alert(error.message); 
+          alert(error.message); 
       } finally { setAnalyzing(false); }
   };
 
@@ -547,9 +462,6 @@ const SidebarPanel = ({
           <Layers className="w-3 h-3 mr-2" />
           Configuração Visual
         </h2>
-        <button onClick={onOpenSettings} className="p-1.5 text-textMuted hover:text-white bg-white/5 hover:bg-white/10 rounded transition-colors group" title="Configurações (API Key)">
-             <Settings className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform" />
-        </button>
       </div>
 
       <div className="p-6 space-y-8 flex-1">
@@ -768,7 +680,6 @@ const SidebarPanel = ({
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   
   // App Logic State
@@ -886,13 +797,7 @@ export default function App() {
         handleStateChange('description', enhanced);
     } catch (e: any) { 
         console.error(e); 
-        // Se o erro for de configuração, abre o modal
-        if (e.message.includes("CONFIGURAÇÃO NECESSÁRIA")) {
-             setShowSettings(true);
-             setError("Por favor, configure sua chave de API para continuar.");
-        } else {
-             setError("Erro ao melhorar prompt. Verifique se a API Key está válida."); 
-        }
+        setError("Erro ao melhorar prompt. Verifique se a API Key está válida no ambiente."); 
     } finally { setMagicLoading(false); }
   };
 
@@ -907,8 +812,7 @@ export default function App() {
          }
      } catch (e: any) { 
          console.error(e); 
-         if (e.message.includes("CONFIGURAÇÃO NECESSÁRIA")) setShowSettings(true);
-         else alert("Erro ao gerar legenda."); 
+         alert("Erro ao gerar legenda."); 
      } finally { setCaptionLoading(null); }
   };
 
@@ -950,12 +854,7 @@ export default function App() {
       }
 
     } catch (err: any) { 
-        if (err.message.includes("CONFIGURAÇÃO NECESSÁRIA")) {
-            setShowSettings(true);
-            setError("Chave de API necessária para gerar imagens.");
-        } else {
-            setError(err.message || "Erro desconhecido na síntese visual."); 
-        }
+        setError(err.message || "Erro desconhecido na síntese visual."); 
     } finally { setLoading(false); }
   };
 
@@ -985,10 +884,6 @@ export default function App() {
         <AdminPanel currentUser={currentUser} onClose={() => setShowAdminPanel(false)} />
       )}
       
-      {showSettings && (
-          <SettingsModal onClose={() => setShowSettings(false)} />
-      )}
-
       {/* Sidebar */}
       <SidebarPanel 
         state={state} 
@@ -998,7 +893,6 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdmin={() => setShowAdminPanel(true)}
-        onOpenSettings={() => setShowSettings(true)}
       />
 
       {/* Main Content */}
