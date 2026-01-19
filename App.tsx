@@ -559,6 +559,10 @@ const SidebarPanel = ({
                     <Shield className="w-3 h-3 mr-1" /> ADMIN
                  </button>
               )}
+              {/* Botão REDUNDANTE para acesso fácil à API Key caso o header falhe */}
+              <button onClick={onOpenSettings} className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-textMuted text-[10px] font-bold rounded flex items-center justify-center transition-colors">
+                 <Settings className="w-3 h-3 mr-1" /> CHAVE API
+              </button>
               <button onClick={onLogout} className="flex-1 py-1.5 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-textMuted text-[10px] font-bold rounded flex items-center justify-center transition-colors">
                  <LogOut className="w-3 h-3 mr-1" /> SAIR
               </button>
