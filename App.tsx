@@ -4,7 +4,7 @@ import { generateCreatives, enhancePrompt, analyzeBrandAssets, generateSocialCap
 import { loginUser, registerUser, logoutUser, getCurrentSession, getUsers, deleteUser, toggleUserRole, approveUser, createUserByAdmin, blockUser, checkDatabaseConnection } from './services/authService';
 import { saveCreative, fetchCreatives, updateCaptionInDb, deleteCreative } from './services/dataService'; 
 import { isFirebaseConfigured } from './lib/firebaseClient'; 
-import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink, RefreshCw } from 'lucide-react';
+import { Layout, Sidebar, Search, Zap, Image as ImageIcon, CheckCircle, RotateCcw, Download, Sparkles, Layers, Palette, AlertCircle, Key, Edit3, Grid, Monitor, Video, Megaphone, UploadCloud, Trash2, Wand2, ScanFace, Loader2, MousePointerClick, Lock, Unlock, Ban, MessageSquare, Copy, Smile, AlignCenter, User as UserIcon, LogOut, Shield, ShieldAlert, Users, UserPlus, Check, XCircle, Settings, X, Cloud, CloudOff, Database, Eye, EyeOff, Flame, ExternalLink, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { STYLES, FORMATS, OBJECTIVES, NICHES, CATEGORIES, MOODS, TEXT_POSITIONS } from './constants';
 
 // --- Components ---
@@ -498,6 +498,8 @@ const SidebarPanel = ({
   onOpenSettings: () => void;
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
   const isAd = state.category === 'Ad Creative';
   const isInsta = state.category === 'Instagram Post';
   const isThumb = state.category === 'YouTube Thumbnail';
@@ -540,7 +542,7 @@ const SidebarPanel = ({
         </button>
       </div>
 
-      <div className="p-6 space-y-8 flex-1">
+      <div className="p-6 space-y-6 flex-1">
         {/* User Info Section */}
         <div className="p-4 bg-surface rounded-xl border border-white/5 flex flex-col space-y-3">
            <div className="flex items-center space-x-3">
@@ -571,35 +573,35 @@ const SidebarPanel = ({
         
         <div className="w-full h-px bg-border/50"></div>
 
-        {/* Batch */}
-        <div className="space-y-4">
-          <div>
-             <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-               Variações
-             </label>
-             <div className="flex bg-surface rounded-lg p-1 border border-border">
-                {[1, 2, 3].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => onChange('modelCount', num)}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                      state.modelCount === num
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-textMuted hover:text-white'
-                    }`}
-                  >
-                    {num}x
-                  </button>
-                ))}
-             </div>
-          </div>
+        {/* 1. O Essencial */}
+        
+        {/* Batch (Variations) */}
+        <div>
+           <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+             Variações (Quantidade)
+           </label>
+           <div className="flex bg-surface rounded-lg p-1 border border-border">
+              {[1, 2, 3].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => onChange('modelCount', num)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
+                    state.modelCount === num
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-textMuted hover:text-white'
+                  }`}
+                >
+                  {num}x
+                </button>
+              ))}
+           </div>
         </div>
 
-        {/* Categories */}
+        {/* Categories (Where to Post) */}
         <div>
           <label className="flex items-center text-xs font-bold text-primary mb-3 uppercase tracking-wider">
             <Layout className="w-3 h-3 mr-2" />
-            Tipo de Conteúdo
+            Onde vai postar?
           </label>
           <div className="grid grid-cols-1 gap-2">
             {CATEGORIES.map((cat) => (
@@ -622,140 +624,155 @@ const SidebarPanel = ({
           </div>
         </div>
 
-        {/* LOGO UPLOAD */}
-        <div className="animate-fadeIn p-4 border border-dashed border-border rounded-xl bg-surface/30 hover:border-primary/50 transition-colors">
-            <label className="flex justify-between items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider cursor-pointer">
-              <span className="flex items-center"><UploadCloud className="w-3 h-3 mr-2 text-accent" /> Inserir Logo (Opcional)</span>
-            </label>
-            {!state.logoImage ? (
-                <div className="relative block w-full text-center py-4 cursor-pointer hover:bg-white/5 rounded transition-colors group">
-                    <span className="text-xs text-textMuted group-hover:text-white transition-colors">Clique para enviar PNG/JPG</span>
-                    <input 
-                       type="file" 
-                       accept="image/png,image/jpeg" 
-                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                       onChange={(e) => { if(e.target.files && e.target.files.length > 0) { onLogoChange(e.target.files[0]); e.target.value = ''; } }} 
-                    />
-                </div>
-            ) : (
-                <div className="flex items-center justify-between bg-surface p-2 rounded-lg mt-2 border border-white/10">
-                    <div className="flex items-center space-x-2 overflow-hidden">
-                        <img src={URL.createObjectURL(state.logoImage)} className="w-8 h-8 object-contain rounded bg-white/5 p-1" alt="Logo" />
-                        <span className="text-xs truncate max-w-[120px] text-white/80">{state.logoImage.name}</span>
-                    </div>
-                    <button onClick={() => onLogoChange(null)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-white/5 rounded">
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
-        </div>
-
-        {isAd && (
-          <div className="animate-fadeIn">
-            <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-              <Zap className="w-3 h-3 mr-2 text-accent" />
-              Objetivo
-            </label>
-            <select value={state.objective} onChange={(e) => onChange('objective', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
-              {OBJECTIVES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-            </select>
-          </div>
-        )}
-
-        {!isBanner && (
-          <div className="animate-fadeIn">
-            <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-              Categoria / Nicho
-            </label>
-            <select value={state.niche} onChange={(e) => onChange('niche', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
-              {NICHES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-            </select>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-4">
-          <div>
-            <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-              <Palette className="w-3 h-3 mr-2 text-accent" />
-              Estilo
-            </label>
-            <select value={state.style} onChange={(e) => onChange('style', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
-              {STYLES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-            </select>
-          </div>
-          <div>
-            <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-              <Smile className="w-3 h-3 mr-2 text-accent" />
-              Atmosfera (Mood)
-            </label>
-            <select value={state.mood} onChange={(e) => onChange('mood', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
-              {MOODS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-            </select>
-          </div>
-          <div>
+        {/* Format */}
+        <div>
              <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
                <ImageIcon className="w-3 h-3 mr-2 text-accent" />
-               Proporção
+               Formato da Imagem
              </label>
              <select value={state.format} onChange={(e) => onChange('format', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
                 {getRelevantFormats().map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
               </select>
-          </div>
         </div>
 
+        {/* Style */}
         <div>
-           <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
-             <Ban className="w-3 h-3 mr-2 text-red-400" />
-             O que evitar? (Opcional)
-           </label>
-           <input type="text" value={state.negativePrompt} onChange={(e) => onChange('negativePrompt', e.target.value)} placeholder="Ex: Pessoas, Texto extra, Cor verde..." className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
-        </div>
-
-        <div className="pt-4 border-t border-border space-y-4">
-          <div>
-            <label className="text-xs font-bold text-textMuted mb-2 uppercase tracking-wider block">
-              {isThumb ? 'Texto da Thumbnail (Curto)' : isAd ? 'Headline (Gancho)' : isBanner ? 'Título Principal' : 'Texto na Imagem (Opcional)'}
+            <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+              <Palette className="w-3 h-3 mr-2 text-accent" />
+              Estilo Visual
             </label>
-            <input type="text" value={state.textOnImage} onChange={(e) => onChange('textOnImage', e.target.value)} placeholder={isThumb ? "EX: INCRÍVEL!" : "Digite o texto aqui..."} className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-textMuted mb-2 uppercase tracking-wider flex items-center">
-                <AlignCenter className="w-3 h-3 mr-2 text-accent" />
-                Posição do Texto
-            </label>
-            <select value={state.textPosition} onChange={(e) => onChange('textPosition', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
-              {TEXT_POSITIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+            <select value={state.style} onChange={(e) => onChange('style', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
+              {STYLES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
             </select>
-          </div>
-          <div className="bg-surface/30 rounded-lg p-3 border border-border/50">
-             <div className="flex items-center justify-between cursor-pointer" onClick={() => onChange('showCta', !state.showCta)}>
-                 <label className="flex items-center text-xs font-bold text-textMuted uppercase tracking-wider cursor-pointer">
-                    <MousePointerClick className="w-3 h-3 mr-2 text-accent" />
-                    Inserir Botão / CTA?
-                 </label>
-                 <div className={`w-8 h-4 rounded-full flex items-center transition-colors px-0.5 ${state.showCta ? 'bg-primary' : 'bg-border'}`}>
-                    <div className={`w-3 h-3 rounded-full bg-white transition-transform ${state.showCta ? 'translate-x-4' : 'translate-x-0'}`} />
-                 </div>
-             </div>
-             {state.showCta && (
-                <div className="mt-3 animate-fadeIn">
-                  <input type="text" value={state.ctaText} onChange={(e) => onChange('ctaText', e.target.value)} placeholder="Texto do Botão (Ex: Saiba Mais)" className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
-                </div>
-             )}
-          </div>
         </div>
 
-        <div>
-           <div className="flex justify-between items-end mb-2">
-               <label className="text-xs font-bold text-textMuted uppercase tracking-wider block">Cores / Identidade</label>
-               <label className="cursor-pointer group flex items-center space-x-1 text-[10px] text-accent hover:text-white transition-colors">
-                   {analyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanFace className="w-3 h-3" />}
-                   <span>{analyzing ? "Analisando..." : "Analisar Marca"}</span>
-                   <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => { if(e.target.files) { handleBrandAnalysis(Array.from(e.target.files)); e.target.value = ''; } }} disabled={analyzing} />
+        {/* 2. O Complemento (Accordion) */}
+        
+        <div className="w-full h-px bg-border/50"></div>
+
+        <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full flex justify-between items-center text-xs font-bold text-accent uppercase tracking-wider bg-surface/30 p-3 rounded-lg hover:bg-surface/50 transition-colors border border-white/5">
+            <span className="flex items-center"><Zap className="w-3 h-3 mr-2" /> Personalização Avançada</span>
+            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {showAdvanced && (
+          <div className="space-y-6 animate-fadeIn p-2 border-l-2 border-border/50 pl-4 mt-2">
+            
+            {/* LOGO UPLOAD */}
+            <div className="p-4 border border-dashed border-border rounded-xl bg-surface/30 hover:border-primary/50 transition-colors">
+                <label className="flex justify-between items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider cursor-pointer">
+                  <span className="flex items-center"><UploadCloud className="w-3 h-3 mr-2 text-accent" /> Inserir Logo</span>
+                </label>
+                {!state.logoImage ? (
+                    <div className="relative block w-full text-center py-4 cursor-pointer hover:bg-white/5 rounded transition-colors group">
+                        <span className="text-xs text-textMuted group-hover:text-white transition-colors">Clique para enviar PNG/JPG</span>
+                        <input 
+                           type="file" 
+                           accept="image/png,image/jpeg" 
+                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                           onChange={(e) => { if(e.target.files && e.target.files.length > 0) { onLogoChange(e.target.files[0]); e.target.value = ''; } }} 
+                        />
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between bg-surface p-2 rounded-lg mt-2 border border-white/10">
+                        <div className="flex items-center space-x-2 overflow-hidden">
+                            <img src={URL.createObjectURL(state.logoImage)} className="w-8 h-8 object-contain rounded bg-white/5 p-1" alt="Logo" />
+                            <span className="text-xs truncate max-w-[120px] text-white/80">{state.logoImage.name}</span>
+                        </div>
+                        <button onClick={() => onLogoChange(null)} className="text-red-400 hover:text-red-300 p-1.5 hover:bg-white/5 rounded">
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {isAd && (
+              <div className="animate-fadeIn">
+                <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+                  Objetivo da Campanha
+                </label>
+                <select value={state.objective} onChange={(e) => onChange('objective', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
+                  {OBJECTIVES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                </select>
+              </div>
+            )}
+
+            {!isBanner && (
+              <div className="animate-fadeIn">
+                <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+                  Nicho de Mercado
+                </label>
+                <select value={state.niche} onChange={(e) => onChange('niche', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
+                  {NICHES.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                </select>
+              </div>
+            )}
+
+            <div>
+                <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+                  <Smile className="w-3 h-3 mr-2 text-accent" />
+                  Atmosfera (Mood)
+                </label>
+                <select value={state.mood} onChange={(e) => onChange('mood', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
+                  {MOODS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                </select>
+            </div>
+
+            <div>
+               <label className="flex items-center text-xs font-bold text-textMuted mb-2 uppercase tracking-wider">
+                 <Ban className="w-3 h-3 mr-2 text-red-400" />
+                 O que evitar? (Negativo)
                </label>
-           </div>
-           <textarea value={state.colorPalette} onChange={(e) => onChange('colorPalette', e.target.value)} placeholder="Ex: Roxo neon e preto... (Ou clique em Analisar Marca)" rows={2} className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary resize-none placeholder-gray-600 transition-all" />
-        </div>
+               <input type="text" value={state.negativePrompt} onChange={(e) => onChange('negativePrompt', e.target.value)} placeholder="Ex: Pessoas, Texto extra, Cor verde..." className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
+            </div>
+
+            <div className="pt-4 border-t border-border space-y-4">
+              <div>
+                <label className="text-xs font-bold text-textMuted mb-2 uppercase tracking-wider block">
+                  {isThumb ? 'Texto da Thumbnail' : isAd ? 'Headline (Gancho)' : isBanner ? 'Título Principal' : 'Texto na Imagem'}
+                </label>
+                <input type="text" value={state.textOnImage} onChange={(e) => onChange('textOnImage', e.target.value)} placeholder={isThumb ? "EX: INCRÍVEL!" : "Digite o texto aqui..."} className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-textMuted mb-2 uppercase tracking-wider flex items-center">
+                    <AlignCenter className="w-3 h-3 mr-2 text-accent" />
+                    Posição do Texto
+                </label>
+                <select value={state.textPosition} onChange={(e) => onChange('textPosition', e.target.value)} className="w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary">
+                  {TEXT_POSITIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                </select>
+              </div>
+              <div className="bg-surface/30 rounded-lg p-3 border border-border/50">
+                 <div className="flex items-center justify-between cursor-pointer" onClick={() => onChange('showCta', !state.showCta)}>
+                     <label className="flex items-center text-xs font-bold text-textMuted uppercase tracking-wider cursor-pointer">
+                        <MousePointerClick className="w-3 h-3 mr-2 text-accent" />
+                        Botão / CTA
+                     </label>
+                     <div className={`w-8 h-4 rounded-full flex items-center transition-colors px-0.5 ${state.showCta ? 'bg-primary' : 'bg-border'}`}>
+                        <div className={`w-3 h-3 rounded-full bg-white transition-transform ${state.showCta ? 'translate-x-4' : 'translate-x-0'}`} />
+                     </div>
+                 </div>
+                 {state.showCta && (
+                    <div className="mt-3 animate-fadeIn">
+                      <input type="text" value={state.ctaText} onChange={(e) => onChange('ctaText', e.target.value)} placeholder="Ex: Saiba Mais" className="w-full bg-surface border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-primary placeholder-gray-600 transition-all" />
+                    </div>
+                 )}
+              </div>
+            </div>
+
+            <div>
+               <div className="flex justify-between items-end mb-2">
+                   <label className="text-xs font-bold text-textMuted uppercase tracking-wider block">Cores da Marca</label>
+                   <label className="cursor-pointer group flex items-center space-x-1 text-[10px] text-accent hover:text-white transition-colors">
+                       {analyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <ScanFace className="w-3 h-3" />}
+                       <span>{analyzing ? "Analisando..." : "Extrair de Logo"}</span>
+                       <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => { if(e.target.files) { handleBrandAnalysis(Array.from(e.target.files)); e.target.value = ''; } }} disabled={analyzing} />
+                   </label>
+               </div>
+               <textarea value={state.colorPalette} onChange={(e) => onChange('colorPalette', e.target.value)} placeholder="Ex: Roxo neon e preto..." rows={2} className="w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary resize-none placeholder-gray-600 transition-all" />
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -841,7 +858,14 @@ export default function App() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setState(prev => ({ ...prev, referenceImages: [...prev.referenceImages, ...Array.from(e.target.files as FileList)] }));
+      const newFiles = Array.from(e.target.files);
+      setState(prev => {
+          if (prev.referenceImages.length + newFiles.length > 5) {
+              alert("Você pode adicionar no máximo 5 imagens de referência.");
+              return prev;
+          }
+          return { ...prev, referenceImages: [...prev.referenceImages, ...newFiles] };
+      });
       e.target.value = '';
     }
   };
@@ -1020,7 +1044,7 @@ export default function App() {
              
              <button 
                 onClick={handleTestConnection}
-                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isCloudConnected ? 'bg-orange-500/10 border-orange-500/20 text-orange-400 hover:bg-orange-500/20' : 'bg-surface border-white/5 text-textMuted hover:bg-white/5'}`} 
+                className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer ${isCloudConnected ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' : 'bg-surface border-white/5 text-textMuted hover:bg-white/5'}`} 
                 title="Clique para testar a conexão com o banco de dados"
              >
                 {isCloudConnected ? <Flame className="w-3 h-3" /> : <CloudOff className="w-3 h-3" />}
@@ -1051,11 +1075,13 @@ export default function App() {
                  </div>
                  <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
                     <div className="flex-shrink-0">
-                      <div className="relative w-28 h-28 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center hover:border-primary hover:bg-primary/5 transition-all group/upload overflow-hidden">
-                          <div className="p-2 rounded-full bg-surface mb-2 group-hover/upload:scale-110 transition-transform pointer-events-none">
-                             <Sparkles className="w-4 h-4 text-textMuted group-hover/upload:text-primary" />
+                      <div className="relative w-28 h-28 rounded-xl border border-dashed border-border bg-background/50 hover:border-primary hover:bg-primary/5 transition-all group/upload overflow-hidden">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                             <div className="p-2 rounded-full bg-surface mb-2 group-hover/upload:scale-110 transition-transform">
+                                <Sparkles className="w-4 h-4 text-textMuted group-hover/upload:text-primary" />
+                             </div>
+                             <span className="text-[10px] text-textMuted font-medium group-hover/upload:text-primary transition-colors">Adicionar Imagem</span>
                           </div>
-                          <span className="text-[10px] text-textMuted font-medium group-hover/upload:text-primary transition-colors pointer-events-none">Adicionar Imagem</span>
                           <input 
                              type="file" 
                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
@@ -1077,7 +1103,7 @@ export default function App() {
 
                <div className="relative">
                   <div className="absolute top-10 left-0 pointer-events-none"><span className="text-primary font-serif italic text-2xl opacity-20">"</span></div>
-                  <textarea value={state.description} onChange={(e) => handleStateChange('description', e.target.value)} placeholder="Descreva sua visão aqui... Ex: Cena cyberpunk noturna com iluminação neon azul e rosa, foco no produto central flutuando." className="w-full h-36 bg-transparent text-lg font-light text-white placeholder-gray-600 focus:outline-none resize-none leading-relaxed px-6 py-2 border-l-2 border-transparent focus:border-primary transition-colors" />
+                  <textarea value={state.description} onChange={(e) => handleStateChange('description', e.target.value)} placeholder="Descreva sua visão aqui... Ex: Um escritório moderno com luz natural, minimalista e elegante." className="w-full h-36 bg-transparent text-lg font-light text-white placeholder-gray-600 focus:outline-none resize-none leading-relaxed px-6 py-2 border-l-2 border-transparent focus:border-primary transition-colors" />
                   <div className="absolute bottom-3 right-3 flex items-center space-x-2">
                      <button onClick={handleMagicPrompt} disabled={magicLoading || !state.description} className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${magicLoading ? 'bg-primary/50 text-white cursor-wait' : 'bg-primary/20 text-primary hover:bg-primary hover:text-white'} ${!state.description ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         {magicLoading ? (<Sparkles className="w-3 h-3 animate-spin" />) : (<Wand2 className="w-3 h-3" />)}
